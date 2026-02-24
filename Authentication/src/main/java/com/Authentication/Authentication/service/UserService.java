@@ -6,7 +6,8 @@ import com.Authentication.Authentication.dto.RegisterRequest;
 import com.Authentication.Authentication.dto.RestPass;
 
 public interface UserService {
-    void createUser(RegisterRequest registerRequest);
+    AuthResponse createUser(RegisterRequest request);
     AuthResponse login(LoginRequest loginRequest);
     AuthResponse restpassword(RestPass restPass);
+
 }
