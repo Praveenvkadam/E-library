@@ -1,5 +1,6 @@
 package com.Authentication.Authentication.service;
 
+import com.Authentication.Authentication.dto.TokenProcessResult;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
@@ -22,9 +23,10 @@ public class JwtService {
     @Value("${JWT_EXPIRATION_MS}")
     private Duration jwtExpirationInMs;
 
-    public String generateToken(String email) {
+    public String generateToken(String email, String role) {
         return Jwts.builder()
                 .subject(email)
+                .claim("role", role)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + jwtExpirationInMs.toMillis()))
                 .signWith(getSigningKey())
@@ -35,9 +37,63 @@ public class JwtService {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
     public boolean isTokenValid(String token, UserDetails userDetails) {
-        final String username = extractUsername(token);
-        return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        try {
+            final String username = extractUsername(token);
+            return username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * Processes the token and returns a TokenProcessResult containing
+     * validation status and extracted information.
+     * 
+     * @param token the JWT token to process
+     * @param userDetails the user details to validate against (can be null for pure token validation)
+     * @return TokenProcessResult containing validation results and token claims
+     */
+    public TokenProcessResult processToken(String token, UserDetails userDetails) {
+        TokenProcessResult result = new TokenProcessResult();
+        
+        try {
+            // Extract all claims from the token
+            String username = extractUsername(token);
+            String role = extractRole(token);
+            Date expiration = extractExpiration(token);
+            
+            result.setUsername(username);
+            result.setRole(role);
+            result.setExpiration(expiration);
+            result.setTokenExpired(isTokenExpired(token));
+            
+            // Validate token against userDetails if provided
+            if (userDetails != null) {
+                boolean isValid = username.equals(userDetails.getUsername()) && !isTokenExpired(token);
+                result.setValid(isValid);
+            } else {
+                // Just check if token is expired
+                result.setValid(!isTokenExpired(token));
+            }
+            
+        } catch (Exception e) {
+            result.setValid(false);
+            result.setErrorMessage(e.getMessage());
+        }
+        
+        return result;
+    }
+
+    /**
+     * Overloaded method to process token without userDetails validation
+     */
+    public TokenProcessResult processToken(String token) {
+        return processToken(token, null);
     }
 
     private boolean isTokenExpired(String token) {

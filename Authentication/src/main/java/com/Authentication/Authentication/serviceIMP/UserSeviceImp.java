@@ -5,6 +5,7 @@ import com.Authentication.Authentication.dto.LoginRequest;
 import com.Authentication.Authentication.dto.RegisterRequest;
 import com.Authentication.Authentication.dto.RestPass;
 import com.Authentication.Authentication.entity.Authprovider;
+import com.Authentication.Authentication.entity.Role;
 import com.Authentication.Authentication.entity.User;
 import com.Authentication.Authentication.repo.UserRepo;
 import com.Authentication.Authentication.service.JwtService;
@@ -13,7 +14,6 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-
 
 @Service
 @RequiredArgsConstructor
@@ -36,23 +36,30 @@ public class UserSeviceImp implements UserService {
             throw new RuntimeException("Email already registered");
         }
 
+        boolean isFirstUser = userRepo.count() == 0;
+
         User user = User.builder()
                 .username(request.username())
                 .email(request.email())
                 .password(passwordEncoder.encode(request.password()))
                 .provider(Authprovider.LOCAL)
+                .role(isFirstUser ? Role.ADMIN : Role.USER)
                 .build();
 
         userRepo.save(user);
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(
+                user.getEmail(),
+                user.getRole().name()
+        );
 
         return new AuthResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 token,
-                user.getProvider().name()
+                user.getProvider().name(),
+                user.getRole().name()
         );
     }
 
@@ -75,14 +82,18 @@ public class UserSeviceImp implements UserService {
             throw new RuntimeException("Invalid credentials");
         }
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(
+                user.getEmail(),
+                user.getRole().name()
+        );
 
         return new AuthResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 token,
-                user.getProvider().name()
+                user.getProvider().name(),
+                user.getRole().name()
         );
     }
 
@@ -98,19 +109,30 @@ public class UserSeviceImp implements UserService {
 
         user.setPassword(passwordEncoder.encode(restPass.newPassword()));
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(
+                user.getEmail(),
+                user.getRole().name()
+        );
 
         return new AuthResponse(
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 token,
-                user.getProvider().name()
+                user.getProvider().name(),
+                user.getRole().name()
         );
+    }
+
+    @Override
+    public boolean isTokenValid(String token) {
+        return false;
+    }
+
+    @Override
+    public void processToken(String token) {
+
     }
 
 
 }
-
-
-

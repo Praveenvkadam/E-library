@@ -41,5 +41,20 @@ public class UserController {
         return ResponseEntity.ok("Password reset successful");
     }
 
+    @GetMapping("/valid/{token}")
+    public ResponseEntity<Boolean> validateToken(
+            @PathVariable String token
+    ) {
+        boolean isValid = userService.isTokenValid(token);
+        return ResponseEntity.ok(isValid);
+    }
+
+    @GetMapping("/{token}")
+    public ResponseEntity<String> handleToken(
+            @PathVariable String token
+    ) {
+        userService.processToken(token);
+        return ResponseEntity.ok("Token processed successfully");
+    }
 
 }
