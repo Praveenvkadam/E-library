@@ -50,14 +50,7 @@ public class JwtService {
         }
     }
 
-    /**
-     * Processes the token and returns a TokenProcessResult containing
-     * validation status and extracted information.
-     * 
-     * @param token the JWT token to process
-     * @param userDetails the user details to validate against (can be null for pure token validation)
-     * @return TokenProcessResult containing validation results and token claims
-     */
+
     public TokenProcessResult processToken(String token, UserDetails userDetails) {
         TokenProcessResult result = new TokenProcessResult();
         
@@ -89,9 +82,7 @@ public class JwtService {
         return result;
     }
 
-    /**
-     * Overloaded method to process token without userDetails validation
-     */
+
     public TokenProcessResult processToken(String token) {
         return processToken(token, null);
     }

@@ -10,5 +10,5 @@ public interface UserService {
     AuthResponse login(LoginRequest loginRequest);
     AuthResponse restpassword(RestPass restPass);
     boolean isTokenValid(String token);
-    void processToken(String token);
+    AuthResponse processToken(String token);
 }

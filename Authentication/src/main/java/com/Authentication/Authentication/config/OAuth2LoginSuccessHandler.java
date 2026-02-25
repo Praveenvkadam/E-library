@@ -2,6 +2,7 @@ package com.Authentication.Authentication.config;
 
 
 import com.Authentication.Authentication.entity.Authprovider;
+import com.Authentication.Authentication.entity.Role;
 import com.Authentication.Authentication.entity.User;
 import com.Authentication.Authentication.repo.UserRepo;
 import com.Authentication.Authentication.service.JwtService;
@@ -44,16 +45,18 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         }
 
         User user = userRepository.findByEmail(email)
-                .orElseGet(() ->
-                        userRepository.save(
+                .orElseGet(() -> {
+                        boolean isFirstUser = userRepository.count() == 0;
+                        return userRepository.save(
                                 User.builder()
                                         .email(email)
+                                        .role(isFirstUser ? Role.ADMIN : Role.USER)
                                         .provider(Authprovider.GOOGLE)
                                         .build()
-                        )
-                );
+                        );
+                });
 
-        String token = jwtService.generateToken(user.getEmail());
+        String token = jwtService.generateToken(user.getEmail(), user.getRole().name());
 
         response.sendRedirect(
                 "http://localhost:3000/?token=" + token
