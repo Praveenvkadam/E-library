@@ -14,6 +14,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -81,5 +83,10 @@ public class UserController {
             @PathVariable String token
     ) {
         return ResponseEntity.ok(userService.processToken(token));
+    }
+
+    @GetMapping("/getall")
+    public ResponseEntity<List<AuthResponse>> getAllUsers() {
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 }

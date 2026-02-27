@@ -2,8 +2,6 @@ package com.Authentication.Authentication.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.security.AuthProvider;
 import java.time.LocalDateTime;
 
 @Entity
@@ -27,12 +25,17 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Column(nullable = true)
+    private String name;
+
+    @Column(nullable = true)
+    private String picture;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
 
     @Column(nullable = true)
-    @EqualsAndHashCode.Include
     private String password;
 
     @Enumerated(EnumType.STRING)

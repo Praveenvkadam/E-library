@@ -17,6 +17,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -26,7 +28,6 @@ public class UserSeviceImp implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final CustomUserDetailsService customUserDetailsService;
-
 
     @Override
     public AuthResponse createUser(RegisterRequest request) {
@@ -53,7 +54,8 @@ public class UserSeviceImp implements UserService {
 
         String token = jwtService.generateToken(
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getProvider().name()   // "LOCAL"
         );
 
         return new AuthResponse(
@@ -65,7 +67,6 @@ public class UserSeviceImp implements UserService {
                 user.getRole().name()
         );
     }
-
 
     @Override
     public AuthResponse login(LoginRequest request) {
@@ -87,7 +88,8 @@ public class UserSeviceImp implements UserService {
 
         String token = jwtService.generateToken(
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getProvider().name()   // "LOCAL"
         );
 
         return new AuthResponse(
@@ -114,7 +116,8 @@ public class UserSeviceImp implements UserService {
 
         String token = jwtService.generateToken(
                 user.getEmail(),
-                user.getRole().name()
+                user.getRole().name(),
+                user.getProvider().name()   // "LOCAL"
         );
 
         return new AuthResponse(
@@ -131,12 +134,8 @@ public class UserSeviceImp implements UserService {
     public boolean isTokenValid(String token) {
         try {
             String email = jwtService.extractUsername(token);
-
-            UserDetails userDetails =
-                    customUserDetailsService.loadUserByUsername(email);
-
+            UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
             return jwtService.isTokenValid(token, userDetails);
-
         } catch (Exception e) {
             return false;
         }
@@ -146,9 +145,7 @@ public class UserSeviceImp implements UserService {
     public AuthResponse processToken(String token) {
 
         String email = jwtService.extractUsername(token);
-
-        UserDetails userDetails =
-                customUserDetailsService.loadUserByUsername(email);
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 
         if (!jwtService.isTokenValid(token, userDetails)) {
             throw new RuntimeException("Invalid or expired token");
@@ -165,5 +162,19 @@ public class UserSeviceImp implements UserService {
                 user.getProvider().name(),
                 user.getRole().name()
         );
+    }
+
+    @Override
+    public List<AuthResponse> getAllUsers() {
+        return userRepo.findAll().stream()
+                .map(user -> new AuthResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getEmail(),
+                        null,
+                        user.getProvider().name(),
+                        user.getRole().name()
+                ))
+                .toList();
     }
 }
