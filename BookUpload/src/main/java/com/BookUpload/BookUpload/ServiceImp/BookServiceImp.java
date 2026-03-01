@@ -5,6 +5,9 @@ import com.BookUpload.BookUpload.DTO.BookResponce;
 import com.BookUpload.BookUpload.Entity.Book;
 import com.BookUpload.BookUpload.Repo.BookRepo;
 import com.BookUpload.BookUpload.Service.BookService;
+
+import com.BookUpload.BookUpload.kafka.BookEvent;
+import com.BookUpload.BookUpload.kafka.BookEventProducer;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import jakarta.transaction.Transactional;
@@ -13,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +31,13 @@ public class BookServiceImp implements BookService {
     @Autowired
     private Cloudinary cloudinary;
 
+    @Autowired
+    private BookEventProducer bookEventProducer;
+
+
+    // ─────────────────────────────────────────────────────────────
+    //  CLOUDINARY HELPERS
+    // ─────────────────────────────────────────────────────────────
 
     private String uploadToCloudinary(MultipartFile file, String resourceType) {
         if (file == null || file.isEmpty()) {
@@ -85,6 +96,10 @@ public class BookServiceImp implements BookService {
     }
 
 
+    // ─────────────────────────────────────────────────────────────
+    //  MAPPING HELPERS
+    // ─────────────────────────────────────────────────────────────
+
     private BookResponce mapToResponse(Book book) {
         if (book == null) {
             throw new RuntimeException("Cannot map null Book to response");
@@ -113,6 +128,29 @@ public class BookServiceImp implements BookService {
     }
 
 
+    // ─────────────────────────────────────────────────────────────
+    //  KAFKA HELPER  — builds event from a saved Book
+    // ─────────────────────────────────────────────────────────────
+
+    private BookEvent buildEvent(Book book, String eventType) {
+        return BookEvent.builder()
+                .bookId(book.getB_id())
+                .bookName(book.getB_name())
+                .author(book.getB_author())
+                .category(book.getB_Category())
+                .language(book.getB_Language())
+                .imageUrl(book.getB_imageUrl())
+                .pdfUrl(book.getB_pdfUrl())
+                .eventType(eventType)
+                .eventTime(LocalDateTime.now())
+                .build();
+    }
+
+
+    // ─────────────────────────────────────────────────────────────
+    //  SERVICE METHODS
+    // ─────────────────────────────────────────────────────────────
+
     @Override
     @Transactional
     public BookResponce BookUpload(BookRequest bookRequest,
@@ -138,10 +176,14 @@ public class BookServiceImp implements BookService {
                     .build();
 
             Book saved = bookRepo.save(book);
+
+            // ✅ Publish event AFTER successful DB save
+            bookEventProducer.publish(buildEvent(saved, "BOOK_UPLOADED"));
+
             return mapToResponse(saved);
 
         } catch (Exception e) {
-
+            // Rollback Cloudinary uploads if DB save fails
             deleteFromCloudinary(imageUrl, "image");
             deleteFromCloudinary(pdfUrl, "raw");
             throw new RuntimeException("Failed to save book, Cloudinary files rolled back: " + e.getMessage(), e);
@@ -159,13 +201,19 @@ public class BookServiceImp implements BookService {
         Book book = bookRepo.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("Book not found with id: " + bookId));
 
-        // Capture response BEFORE deleting from DB
+        // Capture response BEFORE deleting
         BookResponce response = mapToResponse(book);
+
+        // Build event BEFORE deleting (so we still have book data)
+        BookEvent event = buildEvent(book, "BOOK_DELETED");
 
         deleteFromCloudinary(book.getB_imageUrl(), "image");
         deleteFromCloudinary(book.getB_pdfUrl(), "raw");
 
         bookRepo.deleteById(bookId);
+
+        // ✅ Publish event AFTER successful deletion
+        bookEventProducer.publish(event);
 
         return response;
     }
@@ -204,6 +252,10 @@ public class BookServiceImp implements BookService {
         }
 
         Book updated = bookRepo.save(book);
+
+        // ✅ Publish event AFTER successful update
+        bookEventProducer.publish(buildEvent(updated, "BOOK_UPDATED"));
+
         return mapToResponse(updated);
     }
 
@@ -221,7 +273,8 @@ public class BookServiceImp implements BookService {
     public List<BookResponce> searchBooks(String B_name,
                                           String B_author,
                                           Date releaseDate,
-                                          String B_Category, String B_Language) {
+                                          String B_Category,
+                                          String B_Language) {
 
         String name     = (B_name     != null && !B_name.isBlank())     ? B_name     : null;
         String author   = (B_author   != null && !B_author.isBlank())   ? B_author   : null;
