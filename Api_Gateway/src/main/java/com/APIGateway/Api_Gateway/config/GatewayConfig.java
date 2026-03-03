@@ -57,7 +57,6 @@ public class GatewayConfig {
 
                 // ================================================
                 // ROUTE 2 — Auth Protected (JWT + Rate Limit)
-                // Covers: /api/auth/getall, /api/auth/{token}
                 // ================================================
                 .route("auth-protected", r -> r
                         .path("/api/auth/**")
@@ -72,8 +71,7 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ROUTE 3 — Books ADMIN Only (JWT + ROLE_ADMIN + Rate Limit)
-                // Covers: upload, update, delete
+                // ROUTE 3 — Books ADMIN Only (JWT + ROLE_ADMIN)
                 // ⚠️ Must be BEFORE book-public route
                 // ================================================
                 .route("book-admin-routes", r -> r
@@ -83,13 +81,10 @@ public class GatewayConfig {
                                 "/api/books/delete/**"
                         )
                         .filters(f -> f
-                                // Step 1 — Validate JWT & inject X-User-* headers
                                 .filter(authFilter.apply(new AuthFilter.Config()))
-                                // Step 2 — Check ROLE_ADMIN
                                 .filter(roleFilter.apply(
                                         new RoleFilter.Config(List.of("ROLE_ADMIN"))
                                 ))
-                                // Step 3 — Rate limit by userId
                                 .requestRateLimiter(config -> config
                                         .setRateLimiter(redisRateLimiter())
                                         .setKeyResolver(userKeyResolver)
@@ -99,8 +94,7 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ROUTE 4 — Books Public (JWT only, No Role Check)
-                // Covers: getAll, search
+                // ROUTE 4 — Books Public (JWT only)
                 // ================================================
                 .route("book-public-routes", r -> r
                         .path(
@@ -108,7 +102,6 @@ public class GatewayConfig {
                                 "/api/books/search"
                         )
                         .filters(f -> f
-                                // JWT only — no role check needed
                                 .filter(authFilter.apply(new AuthFilter.Config()))
                                 .requestRateLimiter(config -> config
                                         .setRateLimiter(redisRateLimiter())
@@ -118,32 +111,35 @@ public class GatewayConfig {
                         .uri("lb://BOOKUPLOAD")
                 )
 
+                // ================================================
+                // ✅ ROUTE 5 — Subscription Public (No JWT)
+                // Covers: initiate order, verify payment (Razorpay callback)
+                // ⚠️ Must be BEFORE subscription-protected route
+                // ================================================
+                .route("subscription-public", r -> r
+                        .path(
+                                "/api/v1/subscriptions/initiate",
+                                "/api/v1/subscriptions/verify"
+                        )
+                        .uri("lb://SUBSCRIPTION-SERVICE")
+                )
+
+                // ================================================
+                // ✅ ROUTE 6 — Subscription Protected (JWT + Rate Limit)
+                // Covers: get subscription status, cancel, etc.
+                // ================================================
+                .route("subscription-protected", r -> r
+                        .path("/api/v1/subscriptions/**")
+                        .filters(f -> f
+                                .filter(authFilter.apply(new AuthFilter.Config()))
+                                .requestRateLimiter(config -> config
+                                        .setRateLimiter(redisRateLimiter())
+                                        .setKeyResolver(userKeyResolver)
+                                )
+                        )
+                        .uri("lb://SUBSCRIPTION-SERVICE")
+                )
+
                 .build();
     }
 }
-//```
-//
-//        ---
-//
-//        ## Route Access Map
-//```
-//        /api/auth/register          →  No JWT  ✅ Public
-///api/auth/login             →  No JWT  ✅ Public
-///api/auth/restpass          →  No JWT  ✅ Public
-///api/auth/valid/**          →  No JWT  ✅ Public
-// /api/auth/**                →  JWT     🔐 Any logged-in user
-//
-// /api/books/upload           →  JWT + ROLE_ADMIN  👑 Admin only
-// /api/books/update/**        →  JWT + ROLE_ADMIN  👑 Admin only
-// /api/books/delete/**        →  JWT + ROLE_ADMIN  👑 Admin only  (matches /{id} DELETE)
-// /api/books                  →  JWT     🔐 Any logged-in user
-// /api/books/search           →  JWT     🔐 Any logged-in user
-// ```
-//
-// ---
-//
-// ## ⚠️ Important — Route Order Matters
-// ```
-// book-admin-routes  ← checked FIRST (specific paths)
-// ↓
-// book-public-routes ← checked SECOND (fallback)
