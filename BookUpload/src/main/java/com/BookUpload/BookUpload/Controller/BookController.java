@@ -3,6 +3,9 @@ package com.BookUpload.BookUpload.Controller;
 import com.BookUpload.BookUpload.DTO.BookRequest;
 import com.BookUpload.BookUpload.DTO.BookResponce;
 import com.BookUpload.BookUpload.Service.BookService;
+import com.BookUpload.BookUpload.Service.RateLimitService;
+import io.github.bucket4j.Bucket;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -23,6 +26,9 @@ public class BookController {
     @Autowired
     private BookService bookService;
 
+    @Autowired
+    private RateLimitService rateLimitService;
+
     // ================================================
     // ✅ ADMIN ONLY — Upload Book
     // ================================================
@@ -36,16 +42,23 @@ public class BookController {
             @RequestPart("bookLanguage")    String B_Language,
             @RequestPart("imageFile")       MultipartFile imageFile,
             @RequestPart("pdfFile")         MultipartFile pdfFile,
-
-            // ✅ Injected by API Gateway AuthFilter
             @RequestHeader("X-User-Id")    String userId,
             @RequestHeader("X-User-Email") String email,
             @RequestHeader("X-User-Name")  String name,
-            @RequestHeader("X-User-Roles") String roles
+            @RequestHeader("X-User-Roles") String roles,
+            HttpServletRequest httpRequest
     ) {
+        // ✅ Rate limit check (admin bucket)
+        Bucket bucket = rateLimitService.resolveAdminBucket(getClientIp(httpRequest));
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded on /upload by IP: {}", getClientIp(httpRequest));
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many requests — please slow down");
+        }
+
         log.info("Upload attempt by → name: {}, email: {}, roles: {}", name, email, roles);
 
-        // ✅ Double check admin role
         if (!hasRole(roles, "ROLE_ADMIN")) {
             log.warn("Unauthorized upload attempt by: {}", email);
             return ResponseEntity
@@ -75,7 +88,16 @@ public class BookController {
     // ✅ PUBLIC — Get All Books
     // ================================================
     @GetMapping
-    public ResponseEntity<?> getAllBooks() {
+    public ResponseEntity<?> getAllBooks(HttpServletRequest httpRequest) {
+        // ✅ Rate limit check (public bucket)
+        Bucket bucket = rateLimitService.resolvePublicBucket(getClientIp(httpRequest));
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded on /getAll by IP: {}", getClientIp(httpRequest));
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many requests — please slow down");
+        }
+
         try {
             List<BookResponce> books = bookService.findAll();
             return ResponseEntity.ok(books);
@@ -97,8 +119,18 @@ public class BookController {
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd") Date releaseDate,
             @RequestParam(required = false) String B_Category,
-            @RequestParam(required = false) String B_Language
+            @RequestParam(required = false) String B_Language,
+            HttpServletRequest httpRequest
     ) {
+        // ✅ Rate limit check (public bucket)
+        Bucket bucket = rateLimitService.resolvePublicBucket(getClientIp(httpRequest));
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded on /search by IP: {}", getClientIp(httpRequest));
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many requests — please slow down");
+        }
+
         try {
             List<BookResponce> books = bookService.searchBooks(
                     B_name, B_author, releaseDate, B_Category, B_Language
@@ -126,14 +158,21 @@ public class BookController {
             @RequestPart("bookLanguage")    String B_Language,
             @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
             @RequestPart(value = "pdfFile",   required = false) MultipartFile pdfFile,
-
-            // ✅ Injected by API Gateway AuthFilter
             @RequestHeader("X-User-Id")    String userId,
-            @RequestHeader("X-User-Roles") String roles
+            @RequestHeader("X-User-Roles") String roles,
+            HttpServletRequest httpRequest
     ) {
+        // ✅ Rate limit check (admin bucket)
+        Bucket bucket = rateLimitService.resolveAdminBucket(getClientIp(httpRequest));
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded on /update by IP: {}", getClientIp(httpRequest));
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many requests — please slow down");
+        }
+
         log.info("Update attempt for bookId: {} by userId: {}", id, userId);
 
-        // ✅ Double check admin role
         if (!hasRole(roles, "ROLE_ADMIN")) {
             log.warn("Unauthorized update attempt by userId: {}", userId);
             return ResponseEntity
@@ -164,20 +203,25 @@ public class BookController {
         }
     }
 
-    // ================================================
-    // ✅ ADMIN ONLY — Delete Book
-    // ================================================
+
     @DeleteMapping("/{id}")
     public ResponseEntity<?> deleteBook(
             @PathVariable Long id,
-
-            // ✅ Injected by API Gateway AuthFilter
             @RequestHeader("X-User-Id")    String userId,
-            @RequestHeader("X-User-Roles") String roles
+            @RequestHeader("X-User-Roles") String roles,
+            HttpServletRequest httpRequest
     ) {
+
+        Bucket bucket = rateLimitService.resolveAdminBucket(getClientIp(httpRequest));
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded on /delete by IP: {}", getClientIp(httpRequest));
+            return ResponseEntity
+                    .status(HttpStatus.TOO_MANY_REQUESTS)
+                    .body("Too many requests — please slow down");
+        }
+
         log.info("Delete attempt for bookId: {} by userId: {}", id, userId);
 
-        // ✅ Double check admin role
         if (!hasRole(roles, "ROLE_ADMIN")) {
             log.warn("Unauthorized delete attempt by userId: {}", userId);
             return ResponseEntity
@@ -202,10 +246,16 @@ public class BookController {
         }
     }
 
-    // ================================================
-    // ✅ Helper — Check role from X-User-Roles header
-    // X-User-Roles value example: "ROLE_ADMIN,ROLE_USER"
-    // ================================================
+
+    private String getClientIp(HttpServletRequest request) {
+        String forwarded = request.getHeader("X-Forwarded-For");
+        if (forwarded != null && !forwarded.isBlank()) {
+            return forwarded.split(",")[0].trim();
+        }
+        return request.getRemoteAddr();
+    }
+
+
     private boolean hasRole(String rolesHeader, String requiredRole) {
         if (rolesHeader == null || rolesHeader.isEmpty()) return false;
         return List.of(rolesHeader.split(","))
@@ -214,31 +264,3 @@ public class BookController {
                 .anyMatch(role -> role.equals(requiredRole));
     }
 }
-//```
-//
-//        ---
-//
-//        ## What Changed From Your Original
-//
-//| | Before ❌ | After ✅ |
-//        |---|---|---|
-//        | Upload | No auth check | ROLE_ADMIN required |
-//        | Update | No auth check | ROLE_ADMIN required |
-//        | Delete | No auth check | ROLE_ADMIN required |
-//        | Get All | No auth check | Public ✅ |
-//        | Search | No auth check | Public ✅ |
-//        | Return type | `ResponseEntity<BookResponce>` | `ResponseEntity<?>` (returns error messages too) |
-//        | Error response | Empty body | Meaningful error message |
-//        | Logging | None | `@Slf4j` logs all actions |
-//
-//        ---
-//
-//        ## Two Layers of Admin Protection
-//```
-//Request → /api/books/upload
-//      ↓
-//Gateway RoleFilter     → blocks if not ROLE_ADMIN ❌ (1st layer)
-//        ↓
-//        BookController.hasRole() → blocks if not ROLE_ADMIN ❌ (2nd layer)
-//        ↓
-//        BookServiceImp.BookUpload() → uploads to Cloudinary ✅
