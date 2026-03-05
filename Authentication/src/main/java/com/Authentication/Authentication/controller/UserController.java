@@ -1,5 +1,6 @@
 package com.Authentication.Authentication.controller;
 
+
 import com.Authentication.Authentication.dto.AuthResponse;
 import com.Authentication.Authentication.dto.LoginRequest;
 import com.Authentication.Authentication.dto.RegisterRequest;
@@ -89,9 +90,10 @@ public class UserController {
             @ApiResponse(responseCode = "200", description = "Token validity returned"),
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
+    // ✅ FIX: explicit name in @PathVariable("token")
     @GetMapping("/valid/{token}")
     public ResponseEntity<Boolean> validateToken(
-            @PathVariable String token,
+            @PathVariable("token") String token,
             HttpServletRequest httpRequest
     ) {
         Bucket bucket = rateLimitService.resolveGeneralBucket(getClientIp(httpRequest));
@@ -107,9 +109,10 @@ public class UserController {
             @ApiResponse(responseCode = "400", description = "Invalid or expired token"),
             @ApiResponse(responseCode = "429", description = "Too many requests")
     })
+    // ✅ FIX: explicit name in @PathVariable("token")
     @GetMapping("/{token}")
     public ResponseEntity<AuthResponse> handleToken(
-            @PathVariable String token,
+            @PathVariable("token") String token,
             HttpServletRequest httpRequest
     ) {
         Bucket bucket = rateLimitService.resolveGeneralBucket(getClientIp(httpRequest));
@@ -128,7 +131,6 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
-    // Handles proxies and load balancers (X-Forwarded-For header)
     private String getClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
