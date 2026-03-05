@@ -1,49 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Lock, Mail, BookOpen } from "lucide-react";
+import { Mail, Lock, Loader2 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
+import useAuthStore from "@/apis/auth/authstore";
+
+const GOOGLE_OAUTH_URL =
+  (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080") +
+  "/oauth2/authorization/google";
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
+  const router = useRouter();
+  const { login, isLoading, clearError, isAuthenticated } = useAuthStore();
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // handle login
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm();
+
+  useEffect(() => {
+    if (isAuthenticated()) router.replace("/dashboard");
+  }, []);
+
+  const onSubmit = async ({ usernameOrEmail, password }) => {
+    clearError();
+    const toastId = toast.loading("Signing in...");
+    const result = await login({ usernameOrEmail, password });
+    if (result.success) {
+      toast.success("Welcome back! 👋", { id: toastId });
+      router.push("/");
+    } else {
+      toast.error(result.error || "Login failed. Please try again.", { id: toastId });
+    }
+  };
+
+  const handleGoogleSignIn = () => {
+    window.location.href = GOOGLE_OAUTH_URL;
   };
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Navbar */}
-      <nav className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-9 h-9 bg-teal-500 rounded-lg flex items-center justify-center">
-            <BookOpen className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-gray-800 text-lg">City Library</span>
-        </div>
-        <div className="hidden md:flex items-center gap-8">
-          <Link href="#" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Browse</Link>
-          <Link href="#" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Reservations</Link>
-          <Link href="#" className="text-gray-600 hover:text-gray-900 text-sm font-medium">Locations</Link>
-          <Link href="#" className="text-gray-600 hover:text-gray-900 text-sm font-medium">About</Link>
-        </div>
-        <div className="flex items-center gap-4">
-          <Link href="#" className="text-gray-600 hover:text-gray-900 text-sm font-medium hidden sm:block">Help</Link>
-          <Button asChild className="bg-teal-500 hover:bg-teal-600 text-white rounded-full px-5">
-            <Link href="/signup">Join Now</Link>
-          </Button>
-        </div>
-      </nav>
-
-      {/* Main Content */}
       <main className="flex-1 flex items-center justify-center px-4 py-12">
         <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-8">
           {/* Icon */}
@@ -53,78 +58,85 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Heading */}
           <h1 className="text-3xl font-bold text-center text-gray-800 mb-1">Sign In</h1>
           <p className="text-center text-gray-500 text-sm mb-7">Access your books and account</p>
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Email */}
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Username or Email */}
             <div className="space-y-1.5">
-              <Label htmlFor="email" className="text-gray-700 font-medium">Email</Label>
+              <Label htmlFor="usernameOrEmail" className="text-gray-700 font-medium">
+                Username or Email
+              </Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="usernameOrEmail"
+                  type="text"
+                  placeholder="username or name@example.com"
+                  {...register("usernameOrEmail", { required: "Username or email is required" })}
                   className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
                 />
               </div>
+              {errors.usernameOrEmail && (
+                <p className="text-red-500 text-xs mt-1">{errors.usernameOrEmail.message}</p>
+              )}
             </div>
 
             {/* Password */}
             <div className="space-y-1.5">
               <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
               <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">🗝</span>
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  {...register("password", {
+                    required: "Password is required",
+                    minLength: { value: 6, message: "Minimum 6 characters" },
+                  })}
                   className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
                 />
               </div>
+              {errors.password && (
+                <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
+              )}
             </div>
 
-            {/* Remember me + Forgot */}
+            {/* Remember + Forgot */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Checkbox
-                  id="remember"
-                  checked={remember}
-                  onCheckedChange={setRemember}
-                  className="border-gray-300"
-                />
-                <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">Remember me</Label>
+                <Checkbox id="remember" {...register("remember")} className="border-gray-300" />
+                <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
+                  Remember me
+                </Label>
               </div>
               <Link href="/reset-password" className="text-sm text-teal-500 hover:text-teal-600 font-medium">
                 Forgot Password?
               </Link>
             </div>
 
-            {/* Sign In Button */}
             <Button
               type="submit"
+              disabled={isLoading}
               className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-base"
             >
-              Sign In
+              {isLoading
+                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing in...</>
+                : "Sign In"}
             </Button>
           </form>
 
-          {/* Divider */}
           <div className="flex items-center gap-3 my-5">
             <Separator className="flex-1" />
             <span className="text-xs text-gray-400 font-medium tracking-widest">OR CONTINUE WITH</span>
             <Separator className="flex-1" />
           </div>
 
-          {/* Google */}
+          {/* Google — redirects directly to Spring Boot OAuth2 */}
           <Button
             variant="outline"
+            onClick={handleGoogleSignIn}
             className="w-full h-12 border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50"
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
@@ -136,7 +148,6 @@ export default function LoginPage() {
             Sign in with Google
           </Button>
 
-          {/* Create account */}
           <p className="text-center text-sm text-gray-500 mt-6">
             New to the library?{" "}
             <Link href="/signup" className="text-teal-500 hover:text-teal-600 font-semibold">
@@ -146,7 +157,6 @@ export default function LoginPage() {
         </div>
       </main>
 
-      {/* Footer */}
       <footer className="py-6 px-4">
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 mb-2">
           <Link href="#">Privacy Policy</Link>
