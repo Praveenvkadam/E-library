@@ -7,9 +7,10 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
-        <module name="MailService" />
-        <module name="Eureka" />
         <module name="BookUpload" />
+        <module name="MailService" />
+        <module name="UserProfile" />
+        <module name="Eureka" />
       </profile>
       <profile name="Annotation profile for Authentication" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
@@ -51,6 +52,7 @@
       <module name="Eureka" options="-parameters" />
       <module name="MailService" options="-parameters" />
       <module name="Notification" options="-parameters" />
+      <module name="UserProfile" options="-parameters" />
       <module name="subscriptionpayment" options="-parameters" />
     </option>
   </component>
