@@ -7,7 +7,20 @@ import { LogOut, User, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import useAuthStore from "@/apis/auth/authstore";
-import { authApi } from "@/lib/authapi";
+
+/**
+ * Decode JWT payload without any API call.
+ * Avoids the CORS redirect issue caused by calling /api/auth/{token}
+ * which Spring Security redirects to Google OAuth.
+ */
+function decodeJwt(token) {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload;
+  } catch {
+    return null;
+  }
+}
 
 export default function HomePage() {
   const router = useRouter();
@@ -29,31 +42,33 @@ export default function HomePage() {
       return;
     }
 
-    // Handle Google OAuth token from Spring Boot redirect
+    // Handle Google OAuth token — decode JWT directly, no Axios call
     if (token) {
-      const handleToken = async () => {
-        const toastId = toast.loading("Completing Google sign-in...");
-        try {
-          const data = await authApi.processToken(token);
-          loginWithGoogle({
-            backendToken: token,
-            backendUser: {
-              id: data.id,
-              username: data.username,
-              email: data.email,
-              provider: data.provider,
-              role: data.role,
-            },
-          });
-          toast.success(`Welcome, ${data.username}! 👋`, { id: toastId });
-          // Clean the token from the URL after storing
-          router.replace("/");
-        } catch (err) {
-          toast.error(err.message || "Google sign-in failed.", { id: toastId });
-          router.replace("/login");
-        }
-      };
-      handleToken();
+      const payload = decodeJwt(token);
+      if (!payload) {
+        toast.error("Invalid token. Please try again.");
+        router.replace("/login");
+        return;
+      }
+
+      // Spring Boot JWT claims: sub=email, role, provider, iat, exp
+      // There is no username claim — derive it from the email (before @)
+      const email = payload.sub;
+      const username = payload.username ?? email?.split("@")[0] ?? "User";
+
+      loginWithGoogle({
+        backendToken: token,
+        backendUser: {
+          id: payload.id ?? null,
+          username,
+          email,
+          provider: payload.provider ?? "GOOGLE",
+          role: payload.role ?? "USER",
+        },
+      });
+
+      toast.success(`Welcome, ${username}! 👋`);
+      router.replace("/");
     }
   }, []);
 
@@ -62,7 +77,7 @@ export default function HomePage() {
     toast.success("Logged out successfully.");
   };
 
-  // Show a loading spinner while processing the token
+  // Show spinner while token is being processed
   const token = searchParams.get("token");
   if (token) {
     return (
