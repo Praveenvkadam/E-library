@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { LogOut, User, Loader2 } from "lucide-react";
@@ -8,62 +8,59 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import useAuthStore from "@/apis/auth/authstore";
 
-/**
- * Decode JWT payload without any API call.
- * Avoids the CORS redirect issue caused by calling /api/auth/{token}
- * which Spring Security redirects to Google OAuth.
- */
-function decodeJwt(token) {
+function decodeJwt(jwtToken) {
   try {
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload;
+    return JSON.parse(atob(jwtToken.split(".")[1]));
   } catch {
     return null;
   }
 }
 
-export default function HomePage() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // ✅ mounted guard — prevents hydration mismatch from Zustand persist
+  // Server has no localStorage, so we never render auth-dependent UI until mounted
+  const [mounted, setMounted] = useState(false);
+
   const { user, isAuthenticated, loginWithGoogle, logout } = useAuthStore();
 
-  useEffect(() => {
-    const token = searchParams.get("token");
-    const error = searchParams.get("error");
+  const urlToken = searchParams.get("token");
+  const urlError = searchParams.get("error");
 
-    // Handle backend error redirects
-    if (error) {
+  useEffect(() => {
+    setMounted(true);
+
+    if (urlError) {
       const messages = {
         unverified: "Your Google account email is not verified.",
-        use_password_login: "This email is already registered. Please sign in with your password.",
+        use_password_login: "Already registered. Please sign in with your password.",
       };
-      toast.error(messages[error] || "Authentication failed. Please try again.");
+      toast.error(messages[urlError] || "Authentication failed.");
       router.replace("/login");
       return;
     }
 
-    // Handle Google OAuth token — decode JWT directly, no Axios call
-    if (token) {
-      const payload = decodeJwt(token);
+    if (urlToken) {
+      const payload = decodeJwt(urlToken);
       if (!payload) {
         toast.error("Invalid token. Please try again.");
         router.replace("/login");
         return;
       }
 
-      // Spring Boot JWT claims: sub=email, role, provider, iat, exp
-      // There is no username claim — derive it from the email (before @)
-      const email = payload.sub;
+      const email    = payload.sub;
       const username = payload.username ?? email?.split("@")[0] ?? "User";
 
       loginWithGoogle({
-        backendToken: token,
+        backendToken: urlToken,
         backendUser: {
-          id: payload.id ?? null,
+          id:       payload.id ?? null,
           username,
           email,
           provider: payload.provider ?? "GOOGLE",
-          role: payload.role ?? "USER",
+          role:     payload.role ?? "USER",
         },
       });
 
@@ -72,28 +69,23 @@ export default function HomePage() {
     }
   }, []);
 
+  // Don't render anything until client is mounted (avoids hydration mismatch)
+  if (!mounted || urlToken) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
+      </div>
+    );
+  }
+
   const handleLogout = () => {
     logout();
     toast.success("Logged out successfully.");
   };
 
-  // Show spinner while token is being processed
-  const token = searchParams.get("token");
-  if (token) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-gray-500">
-          <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
-          <p className="text-sm font-medium">Completing Google sign-in...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 flex items-center justify-center">
       {isAuthenticated() ? (
-        // ── Authenticated view ──────────────────────────────────
         <div className="bg-white rounded-2xl shadow-lg p-8 flex flex-col items-center gap-5 w-full max-w-sm">
           <div className="w-16 h-16 rounded-full bg-teal-50 flex items-center justify-center">
             <User className="w-8 h-8 text-teal-500" />
@@ -115,7 +107,6 @@ export default function HomePage() {
           </Button>
         </div>
       ) : (
-        // ── Guest view ──────────────────────────────────────────
         <div className="flex flex-col items-center gap-4">
           <h1 className="text-2xl font-bold text-gray-800">Welcome to Library Portal</h1>
           <div className="flex gap-3">
@@ -129,5 +120,17 @@ export default function HomePage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   );
 }

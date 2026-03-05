@@ -15,16 +15,12 @@ const useAuthStore = create(
       clearError: () => set({ error: null }),
       isAuthenticated: () => !!get().token,
 
-      // ─── Manual Register ─────────────────────────────────────
+      // ─── Manual Register (does NOT store token — redirects to login) ──
       register: async ({ username, email, password }) => {
         set({ isLoading: true, error: null });
         try {
-          const data = await authApi.register({ username, email, password });
-          set({
-            user: { id: data.id, username: data.username, email: data.email, provider: data.provider, role: data.role },
-            token: data.token,
-            isLoading: false,
-          });
+          await authApi.register({ username, email, password });
+          set({ isLoading: false });
           return { success: true };
         } catch (err) {
           set({ error: err.message, isLoading: false });

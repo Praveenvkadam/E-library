@@ -32,7 +32,7 @@ export default function SignUpPage() {
   const password = watch("password");
 
   useEffect(() => {
-    if (isAuthenticated()) router.replace("/dashboard");
+    if (isAuthenticated()) router.replace("/");
   }, []);
 
   const onSubmit = async ({ username, email, password }) => {
