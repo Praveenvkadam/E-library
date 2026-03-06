@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Lock, ShieldCheck, ArrowLeft, Loader2, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, ShieldCheck, ArrowLeft, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,8 @@ import useAuthStore from "@/apis/auth/authstore";
 export default function ResetPasswordPage() {
   const { resetPassword, isLoading, clearError } = useAuthStore();
   const [success, setSuccess] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -92,14 +94,18 @@ export default function ResetPasswordPage() {
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
                       id="newPassword"
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       placeholder="••••••••"
                       {...register("newPassword", {
                         required: "New password is required",
                         minLength: { value: 8, message: "Minimum 8 characters" },
                       })}
-                      className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
+                      className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
                     />
+                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                   {errors.newPassword && <p className="text-red-500 text-xs mt-1">{errors.newPassword.message}</p>}
                 </div>
@@ -111,14 +117,18 @@ export default function ResetPasswordPage() {
                     <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                     <Input
                       id="confirmPassword"
-                      type="password"
+                      type={showConfirmPassword ? "text" : "password"}
                       placeholder="••••••••"
                       {...register("confirmPassword", {
                         required: "Please confirm your password",
                         validate: (val) => val === newPassword || "Passwords do not match",
                       })}
-                      className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
+                      className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
                     />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                   {errors.confirmPassword && (
                     <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>

@@ -21,6 +21,7 @@ export default function SignUpPage() {
   const router = useRouter();
   const { register: registerUser, isLoading, clearError, isAuthenticated } = useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const {
     register,
@@ -143,13 +144,17 @@ export default function SignUpPage() {
                 <Label htmlFor="confirm" className="text-gray-700 font-medium">Confirm Password</Label>
                 <div className="relative">
                   <RefreshCw className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <Input id="confirm" type="password" placeholder="••••••••"
+                  <Input id="confirm" type={showConfirmPassword ? "text" : "password"} placeholder="••••••••"
                     {...register("confirm", {
                       required: "Please confirm your password",
                       validate: (val) => val === password || "Passwords do not match",
                     })}
-                    className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
+                    className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
                   />
+                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                    {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
                 </div>
                 {errors.confirm && <p className="text-red-500 text-xs mt-1">{errors.confirm.message}</p>}
               </div>

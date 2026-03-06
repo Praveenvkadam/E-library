@@ -62,9 +62,9 @@ public class UserSeviceImp implements UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getRole().name(),
                 token,
-                user.getProvider().name(),
-                user.getRole().name()
+                user.getProvider().name()
         );
     }
 
@@ -96,9 +96,9 @@ public class UserSeviceImp implements UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getRole().name(),
                 token,
-                user.getProvider().name(),
-                user.getRole().name()
+                user.getProvider().name()
         );
     }
 
@@ -124,9 +124,9 @@ public class UserSeviceImp implements UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getRole().name(),
                 token,
-                user.getProvider().name(),
-                user.getRole().name()
+                user.getProvider().name()
         );
     }
 
@@ -158,9 +158,9 @@ public class UserSeviceImp implements UserService {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
+                user.getRole().name(),
                 token,
-                user.getProvider().name(),
-                user.getRole().name()
+                user.getProvider().name()
         );
     }
 

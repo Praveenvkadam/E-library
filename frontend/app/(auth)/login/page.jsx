@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,8 @@ const GOOGLE_OAUTH_URL =
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, clearError, isAuthenticated } = useAuthStore();
+  const [mounted, setMounted] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const {
     register,
@@ -28,7 +30,9 @@ export default function LoginPage() {
   } = useForm();
 
   useEffect(() => {
-    if (isAuthenticated()) router.replace("/dashboard");
+    setMounted(true);
+    // ✅ redirect to "/" not "/dashboard"
+    if (isAuthenticated()) router.replace("/");
   }, []);
 
   const onSubmit = async ({ usernameOrEmail, password }) => {
@@ -46,6 +50,15 @@ export default function LoginPage() {
   const handleGoogleSignIn = () => {
     window.location.href = GOOGLE_OAUTH_URL;
   };
+
+  // Wait for client mount before rendering (prevents hydration mismatch)
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -89,14 +102,18 @@ export default function LoginPage() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   {...register("password", {
                     required: "Password is required",
                     minLength: { value: 6, message: "Minimum 6 characters" },
                   })}
-                  className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
+                  className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
                 />
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
               {errors.password && (
                 <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
@@ -133,7 +150,6 @@ export default function LoginPage() {
             <Separator className="flex-1" />
           </div>
 
-          {/* Google — redirects directly to Spring Boot OAuth2 */}
           <Button
             variant="outline"
             onClick={handleGoogleSignIn}

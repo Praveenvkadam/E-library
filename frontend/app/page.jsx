@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import useAuthStore from "@/apis/auth/authstore";
 
-//ghjk
 function decodeJwt(jwtToken) {
   try {
     return JSON.parse(atob(jwtToken.split(".")[1]));
@@ -20,11 +19,7 @@ function decodeJwt(jwtToken) {
 function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  // ✅ mounted guard — prevents hydration mismatch from Zustand persist
-  // Server has no localStorage, so we never render auth-dependent UI until mounted
   const [mounted, setMounted] = useState(false);
-
   const { user, isAuthenticated, loginWithGoogle, logout } = useAuthStore();
 
   const urlToken = searchParams.get("token");
@@ -44,6 +39,7 @@ function HomeContent() {
     }
 
     if (urlToken) {
+      // ✅ Decode JWT directly — no API call (avoids CORS redirect issue)
       const payload = decodeJwt(urlToken);
       if (!payload) {
         toast.error("Invalid token. Please try again.");
@@ -53,6 +49,7 @@ function HomeContent() {
 
       const email    = payload.sub;
       const username = payload.username ?? email?.split("@")[0] ?? "User";
+     
 
       loginWithGoogle({
         backendToken: urlToken,
@@ -61,7 +58,7 @@ function HomeContent() {
           username,
           email,
           provider: payload.provider ?? "GOOGLE",
-          role:     payload.role ?? "USER",
+          role:     payload.role ?? "USER", 
         },
       });
 
@@ -70,11 +67,14 @@ function HomeContent() {
     }
   }, []);
 
-  // Don't render anything until client is mounted (avoids hydration mismatch)
+  // Show spinner until mounted + token processed
   if (!mounted || urlToken) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 animate-spin text-teal-500" />
+          <p className="text-sm text-gray-500 font-medium">Completing sign-in...</p>
+        </div>
       </div>
     );
   }
@@ -95,7 +95,7 @@ function HomeContent() {
             <p className="text-lg font-bold text-gray-800">{user?.username}</p>
             <p className="text-sm text-gray-500">{user?.email}</p>
             <span className="inline-block mt-2 text-xs font-medium px-2.5 py-0.5 rounded-full bg-teal-50 text-teal-600">
-              {user?.role}
+              {user?.role?.length > 20 ? "USER" : user?.role || "USER"}
             </span>
           </div>
           <Button

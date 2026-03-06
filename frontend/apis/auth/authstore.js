@@ -1,21 +1,24 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { authApi } from "@/lib/authapi";
+
+let _token = null;
+
+export function getToken() {
+  return _token;
+}
 
 const useAuthStore = create(
   persist(
     (set, get) => ({
-      // ─── State ───────────────────────────────────────────────
-      user: null,       // { id, username, email, provider, role }
-      token: null,
+      user: null,
       isLoading: false,
       error: null,
 
-      // ─── Helpers ─────────────────────────────────────────────
       clearError: () => set({ error: null }),
-      isAuthenticated: () => !!get().token,
+      isAuthenticated: () => !!_token,
 
-      // ─── Manual Register (does NOT store token — redirects to login) ──
+      // ─── Manual Register ───────────────────────────────────────
       register: async ({ username, email, password }) => {
         set({ isLoading: true, error: null });
         try {
@@ -28,14 +31,32 @@ const useAuthStore = create(
         }
       },
 
-      // ─── Manual Login ────────────────────────────────────────
+      // ─── Manual Login ─────────────────────────────────────────
       login: async ({ usernameOrEmail, password }) => {
         set({ isLoading: true, error: null });
         try {
           const data = await authApi.login({ usernameOrEmail, password });
+          _token = data.token;
+          // persist token to localStorage manually
+          if (typeof window !== "undefined") {
+            localStorage.setItem("auth-token", data.token);
+          }
+          // Decode token in case role or other info is missing/incorrectly mapped
+          let payload = {};
+          try {
+            payload = JSON.parse(atob(data.token.split(".")[1]));
+          } catch (e) {
+            // ignore
+          }
+          
           set({
-            user: { id: data.id, username: data.username, email: data.email, provider: data.provider, role: data.role },
-            token: data.token,
+            user: { 
+              id: data.userId || payload.id, 
+              username: data.username || payload.username, 
+              email: data.email || payload.sub, 
+              provider: data.provider || payload.provider || "LOCAL", 
+              role: data.role || payload.role 
+            },
             isLoading: false,
           });
           return { success: true };
@@ -45,14 +66,16 @@ const useAuthStore = create(
         }
       },
 
-      // ─── Google Login (called from root page after OAuth redirect) ─
-      // Spring Boot redirects to /?token=JWT after successful Google login.
-      // Root page calls processToken to get full user info then calls this.
+      // ─── Google Login ─────────────────────────────────────────
       loginWithGoogle: ({ backendToken, backendUser }) => {
-        set({ user: backendUser, token: backendToken, isLoading: false, error: null });
+        _token = backendToken;
+        if (typeof window !== "undefined") {
+          localStorage.setItem("auth-token", backendToken);
+        }
+        set({ user: backendUser, isLoading: false, error: null });
       },
 
-      // ─── Reset Password ──────────────────────────────────────
+      // ─── Reset Password ───────────────────────────────────────
       resetPassword: async ({ email, newPassword }) => {
         set({ isLoading: true, error: null });
         try {
@@ -66,11 +89,25 @@ const useAuthStore = create(
       },
 
       // ─── Logout ──────────────────────────────────────────────
-      logout: () => set({ user: null, token: null, error: null }),
+      logout: () => {
+        _token = null;
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("auth-token");
+        }
+        set({ user: null, error: null });
+      },
     }),
     {
-      name: "auth-storage",
-      partialize: (state) => ({ user: state.user, token: state.token }),
+      name: "auth-user",
+      storage: createJSONStorage(() => localStorage),
+      // ✅ Only persist user object — token is NEVER in Zustand state
+      partialize: (state) => ({ user: state.user }),
+      onRehydrateStorage: () => (state) => {
+        // Restore token from separate localStorage key on client rehydration
+        if (typeof window !== "undefined") {
+          _token = localStorage.getItem("auth-token");
+        }
+      },
     }
   )
 );
