@@ -38,7 +38,7 @@ This project follows a **microservices architecture** pattern with the following
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React/Web)                      │
+│                        Frontend (Next JS)                      │
 └────────────────────┬────────────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────────────┐
@@ -71,9 +71,9 @@ This project follows a **microservices architecture** pattern with the following
 - **Authentication**: JWT-based security
 - **Frontend**: Modern responsive web framework
 - **Payment Processing**: Subscription payment service
-- **AI/ML**: AI service for recommendations
+- **AI/ML**: AI service for recommendations(gemini,sarvam)
 - **Email**: Mail service for notifications
-- **Build Tools**: Maven/Gradle
+- **Build Tools**: Maven
 - **IDE Support**: IntelliJ IDEA, VS Code
 
 ## 📁 Project Structure
