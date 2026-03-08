@@ -101,7 +101,7 @@ E-library/
 - Java 11 or higher
 - Maven 3.6+ or Gradle 6.0+
 - Node.js 14+ (for frontend)
-- MySQL/PostgreSQL (for database)
+- MySQL,PostgreSQL,MongoDB (for database)
 - Git
 
 ### Installation
