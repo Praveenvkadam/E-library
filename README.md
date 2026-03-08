@@ -64,7 +64,7 @@ This project follows a **microservices architecture** pattern with the following
 
 ## 🔧 Technology Stack
 
-- **Language**: Java
+- **Language**: Java,JS
 - **Architecture**: Microservices
 - **API Gateway**: Spring Cloud Gateway
 - **Service Discovery**: Eureka
