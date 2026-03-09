@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import useAuthStore from "@/apis/auth/authstore";
+import useAuthStore from "@/store/authstore";
 
 function getDisplayName(user) {
   return user?.username || user?.name || "User";

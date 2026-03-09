@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, HelpCircle, MessageSquare } from "lucide-react";
-import useAuthStore from "@/apis/auth/authstore";
+import useAuthStore from "@/store/authstore";
 
 const GOOGLE_OAUTH_URL =
   (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080") +

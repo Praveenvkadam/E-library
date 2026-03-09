@@ -63,13 +63,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
                             .build()
             );
         } else {
-            // 4. Update profile in case it changed on Google side
             user.setName(name);
             user.setPicture(picture);
             userRepository.save(user);
         }
 
-        // 5. Generate JWT with provider included
+
         String token = jwtService.generateToken(
                 user.getEmail(),
                 user.getRole().name(),

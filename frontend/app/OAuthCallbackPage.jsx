@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
-import useAuthStore from "@/apis/auth/authstore";
+import useAuthStore from "@/store/authstore";
 
 export default function OAuthCallbackPage() {
   const router = useRouter();

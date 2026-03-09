@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff, ArrowLeft, CheckCircle2 } from "lucide-react";
-import useAuthStore from "@/apis/auth/authstore";
+import useAuthStore from "@/store/authstore";
 
 export default function ResetPasswordPage() {
   const { resetPassword, isLoading, clearError } = useAuthStore();

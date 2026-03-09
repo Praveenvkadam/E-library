@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useSearchParams }  from "next/navigation";
 import { toast }            from "sonner";
 import { Loader2 }          from "lucide-react";
-import useAuthStore         from "@/apis/auth/authstore";
+import useAuthStore         from "@/store/authstore";
 import Navbar               from "@/components/Navbar";
 import HeroBanner           from "@/components/HeroBanner";
 import CategoryFilter       from "@/components/Categoryfilter";

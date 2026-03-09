@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import useAuthStore from "@/apis/auth/authstore";
+import useAuthStore from "@/store/authstore";
 
 export default function StoreProvider({ children }) {
   useEffect(() => {
