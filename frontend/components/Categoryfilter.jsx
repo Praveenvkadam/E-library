@@ -15,7 +15,13 @@ export default function CategoryFilter({ active: externalActive, onChange }) {
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
-      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:20 }}>
+      <style>{`
+        .cat-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        @media (max-width: 400px) {
+          .cat-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+        }
+      `}</style>
+      <div className="cat-header">
         <div style={{ display:"flex", alignItems:"center", gap:10 }}>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:3, width:22, height:22 }}>
             {[0,1,2,3].map((i) => (

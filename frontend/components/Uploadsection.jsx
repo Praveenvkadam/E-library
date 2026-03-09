@@ -63,6 +63,17 @@ export default function UploadSection({ setActivePage }) {
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        .upload-two-col { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; }
+        .upload-left    { flex: 1; min-width: 280px; }
+        .upload-right   { flex: 1; min-width: 280px; display: flex; flex-direction: column; gap: 16px; }
+        .upload-inner   { display: flex; gap: 24px; }
+        @media (max-width: 640px) {
+          .upload-inner   { flex-direction: column; }
+          .upload-cover   { width: 100% !important; }
+          .upload-footer  { flex-direction: column; align-items: flex-start; gap: 10px; }
+        }
+      `}</style>
 
       {/* ── Page heading ───────────────────────────── */}
       <div style={{ marginBottom: 28 }}>
@@ -75,21 +86,20 @@ export default function UploadSection({ setActivePage }) {
       </div>
 
       {/* ── Two-column layout ──────────────────────── */}
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+      <div className="upload-two-col">
 
         {/* ── LEFT card ──────────────────────────────── */}
-        <div style={{
-          flex: 1, minWidth: 420,
+        <div className="upload-left" style={{
           background: "#fff",
           borderRadius: 16,
           border: "1px solid #e2e8f0",
           padding: 24,
           boxShadow: "0 1px 8px rgba(0,0,0,.06)",
         }}>
-          <div style={{ display: "flex", gap: 24 }}>
+          <div className="upload-inner">
 
             {/* Book Cover drop-zone */}
-            <div style={{ flexShrink: 0, width: 200 }}>
+            <div className="upload-cover" style={{ flexShrink: 0, width: 200 }}>
               <p style={labelStyle}>Book Cover</p>
               <div
                 onDragOver={(e) => { e.preventDefault(); setCoverDragging(true); }}
@@ -251,7 +261,7 @@ export default function UploadSection({ setActivePage }) {
           </div>
 
           {/* Footer bar */}
-          <div style={{
+          <div className="upload-footer" style={{
             marginTop: 24, paddingTop: 20,
             borderTop: "1px solid #f1f5f9",
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -286,7 +296,7 @@ export default function UploadSection({ setActivePage }) {
         </div>
 
         {/* ── RIGHT sidebar ───────────────────────────── */}
-        <div style={{ width: 360, display: "flex", flexDirection: "column", gap: 16 }}>
+        <div className="upload-right">
 
           {/* Recently Uploaded */}
           <div style={{

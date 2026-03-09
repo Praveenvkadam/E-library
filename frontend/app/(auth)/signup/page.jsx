@@ -37,14 +37,23 @@ export default function SignUpPage() {
 
   return (
     <div style={pageStyle}>
-      <div style={{ width: "100%", maxWidth: 900, background: "#fff", borderRadius: 20, boxShadow: "0 4px 32px rgba(0,0,0,.10)", border: "1px solid #e2e8f0", overflow: "hidden", display: "flex" }}>
+      <style>{`
+        .signup-card   { width: 100%; max-width: 900px; background: #fff; border-radius: 20px; box-shadow: 0 4px 32px rgba(0,0,0,.10); border: 1px solid #e2e8f0; overflow: hidden; display: flex; }
+        .signup-hero   { width: 40%; min-height: 600px; flex-shrink: 0; position: relative; display: flex; flex-direction: column; justify-content: flex-end; background: #1e3a5f; padding: 36px; }
+        .signup-form   { flex: 1; padding: 36px 40px; overflow-y: auto; }
+        @media (max-width: 767px) {
+          .signup-hero { display: none; }
+          .signup-card { max-width: 480px; }
+          .signup-form { padding: 28px 20px; }
+        }
+        @media (max-width: 479px) {
+          .signup-form { padding: 24px 16px; }
+        }
+      `}</style>
+      <div className="signup-card">
 
         {/* ── Left hero panel ──────────────────────────────── */}
-        <div style={{
-          width: "40%", minHeight: 600, flexShrink: 0,
-          position: "relative", display: "flex", flexDirection: "column", justifyContent: "flex-end",
-          background: "#1e3a5f", padding: 36,
-        }}>
+        <div className="signup-hero">
           {/* BG image */}
           <div style={{
             position: "absolute", inset: 0,
@@ -79,7 +88,7 @@ export default function SignUpPage() {
         </div>
 
         {/* ── Right form panel ─────────────────────────────── */}
-        <div style={{ flex: 1, padding: "36px 40px 36px", overflowY: "auto", fontFamily: ff }}>
+        <div className="signup-form" style={{ fontFamily: ff }}>
           <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1e293b", margin: "0 0 4px", letterSpacing: "-.3px" }}>Create Your Account</h1>
           <p style={{ fontSize: 13, color: "#64748b", marginBottom: 24 }}>Enter your details to register for your library account.</p>
 

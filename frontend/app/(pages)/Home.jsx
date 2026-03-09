@@ -20,6 +20,10 @@ const BASE_STYLES = `
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: #f1f5f9; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  .main-content { padding: 36px 48px; display: flex; flex-direction: column; gap: 48px; width: 100%; flex: 1; }
+  @media (max-width: 1023px) { .main-content { padding: 28px 28px; gap: 36px; } }
+  @media (max-width: 767px)  { .main-content { padding: 20px 16px; gap: 28px; } }
+  @media (max-width: 479px)  { .main-content { padding: 16px 12px; gap: 20px; } }
 `;
 
 export default function HomePage() {
@@ -110,7 +114,7 @@ export default function HomePage() {
         <style>{BASE_STYLES}</style>
         <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", width: "100%" }}>
           <Navbar activePage={activePage} setActivePage={setActivePage} />
-          <main style={{ flex: 1, width: "100%", padding: "36px 48px" }}>
+          <main className="main-content">
             <UploadSection setActivePage={setActivePage} />
           </main>
           <Footer />
@@ -125,10 +129,7 @@ export default function HomePage() {
       <style>{BASE_STYLES}</style>
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", width: "100%" }}>
         <Navbar activePage={activePage} setActivePage={setActivePage} />
-        <main style={{
-          flex: 1, padding: "36px 48px",
-          display: "flex", flexDirection: "column", gap: 48, width: "100%",
-        }}>
+        <main className="main-content">
           <HeroBanner />
           <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
           <FeaturedBooks onBorrow={handleBorrow} />

@@ -44,12 +44,22 @@ const DEFAULT_BOOKS = [
 ];
 
 // ── FeaturedBooks ─────────────────────────────────────────────────────────────
-// Props:
-//   books?: array  — override the default book list
-//   onBorrow?: (book) => void
 export default function FeaturedBooks({ books = DEFAULT_BOOKS, onBorrow }) {
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
+      <style>{`
+        .featured-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+        }
+        @media (max-width: 1023px) {
+          .featured-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 479px) {
+          .featured-grid { grid-template-columns: 1fr; }
+        }
+      `}</style>
 
       {/* ── Header ── */}
       <div style={{
@@ -65,11 +75,7 @@ export default function FeaturedBooks({ books = DEFAULT_BOOKS, onBorrow }) {
       </div>
 
       {/* ── Grid ── */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(4, 1fr)",
-        gap: 20,
-      }}>
+      <div className="featured-grid">
         {books.map((book) => (
           <BookCard key={book.id} book={book} onBorrow={onBorrow} />
         ))}
