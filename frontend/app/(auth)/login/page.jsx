@@ -3,14 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Mail, Lock, Loader2, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Separator } from "@/components/ui/separator";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import useAuthStore from "@/apis/auth/authstore";
 
 const GOOGLE_OAUTH_URL =
@@ -20,18 +15,13 @@ const GOOGLE_OAUTH_URL =
 export default function LoginPage() {
   const router = useRouter();
   const { login, isLoading, clearError, isAuthenticated } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [mounted, setMounted]       = useState(false);
+  const [showPassword, setShowPass] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm();
+  const { register, handleSubmit, formState: { errors } } = useForm();
 
   useEffect(() => {
     setMounted(true);
-    // ✅ redirect to "/" not "/dashboard"
     if (isAuthenticated()) router.replace("/");
   }, []);
 
@@ -47,140 +37,186 @@ export default function LoginPage() {
     }
   };
 
-  const handleGoogleSignIn = () => {
-    window.location.href = GOOGLE_OAUTH_URL;
-  };
-
-  // Wait for client mount before rendering (prevents hydration mismatch)
-  if (!mounted) {
-    return (
-      <div className="min-h-screen bg-gray-100 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-teal-500" />
-      </div>
-    );
-  }
+  if (!mounted) return (
+    <div style={pageStyle}>
+      <Loader2 style={{ width: 32, height: 32, color: "#0d9488", animation: "spin 1s linear infinite" }} />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-8">
-          {/* Icon */}
-          <div className="flex justify-center mb-5">
-            <div className="w-16 h-16 bg-teal-50 rounded-full flex items-center justify-center">
-              <Lock className="w-8 h-8 text-teal-500" />
-            </div>
+    <div style={pageStyle}>
+      <div style={cardStyle}>
+
+        {/* Icon header */}
+        <div style={{ padding: "36px 36px 24px", display: "flex", flexDirection: "column", alignItems: "center", borderBottom: "1px solid #f1f5f9" }}>
+          <div style={{ width: 56, height: 56, background: "#f0fdfa", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14 }}>
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0d9488" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
           </div>
+          <h1 style={{ fontSize: 26, fontWeight: 800, color: "#1e293b", margin: 0, letterSpacing: "-.4px" }}>Sign In</h1>
+          <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>Access your books and account</p>
+        </div>
 
-          <h1 className="text-3xl font-bold text-center text-gray-800 mb-1">Sign In</h1>
-          <p className="text-center text-gray-500 text-sm mb-7">Access your books and account</p>
+        {/* Form */}
+        <div style={{ padding: "28px 36px 32px" }}>
+          <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
             {/* Username or Email */}
-            <div className="space-y-1.5">
-              <Label htmlFor="usernameOrEmail" className="text-gray-700 font-medium">
-                Username or Email
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="usernameOrEmail"
-                  type="text"
-                  placeholder="username or name@example.com"
+            <div style={fieldWrap}>
+              <label style={labelStyle}>Username or Email</label>
+              <div style={{ position: "relative" }}>
+                <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <input type="text" placeholder="username or name@example.com"
                   {...register("usernameOrEmail", { required: "Username or email is required" })}
-                  className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
+                  style={{ ...inputStyle, paddingLeft: 40 }}
+                  onFocus={e => e.target.style.borderColor = "#0d9488"}
+                  onBlur={e => e.target.style.borderColor = errors.usernameOrEmail ? "#ef4444" : "#e2e8f0"}
                 />
               </div>
-              {errors.usernameOrEmail && (
-                <p className="text-red-500 text-xs mt-1">{errors.usernameOrEmail.message}</p>
-              )}
+              {errors.usernameOrEmail && <p style={errStyle}>{errors.usernameOrEmail.message}</p>}
             </div>
 
             {/* Password */}
-            <div className="space-y-1.5">
-              <Label htmlFor="password" className="text-gray-700 font-medium">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="••••••••"
-                  {...register("password", {
-                    required: "Password is required",
-                    minLength: { value: 6, message: "Minimum 6 characters" },
-                  })}
-                  className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-teal-400"
+            <div style={fieldWrap}>
+              <label style={labelStyle}>Password</label>
+              <div style={{ position: "relative" }}>
+                <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                <input type={showPassword ? "text" : "password"} placeholder="••••••••"
+                  {...register("password", { required: "Password is required", minLength: { value: 6, message: "Minimum 6 characters" } })}
+                  style={{ ...inputStyle, paddingLeft: 40, paddingRight: 44 }}
+                  onFocus={e => e.target.style.borderColor = "#0d9488"}
+                  onBlur={e => e.target.style.borderColor = errors.password ? "#ef4444" : "#e2e8f0"}
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                <button type="button" onClick={() => setShowPass(p => !p)} style={eyeBtn}>
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              {errors.password && (
-                <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>
-              )}
+              {errors.password && <p style={errStyle}>{errors.password.message}</p>}
             </div>
 
             {/* Remember + Forgot */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Checkbox id="remember" {...register("remember")} className="border-gray-300" />
-                <Label htmlFor="remember" className="text-sm text-gray-600 cursor-pointer">
-                  Remember me
-                </Label>
-              </div>
-              <Link href="/reset-password" className="text-sm text-teal-500 hover:text-teal-600 font-medium">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, color: "#475569", cursor: "pointer" }}>
+                <input type="checkbox" {...register("remember")} style={{ accentColor: "#0d9488", width: 15, height: 15 }} />
+                Remember me
+              </label>
+              <Link href="/reset-password" style={{ fontSize: 13, fontWeight: 600, color: "#0d9488", textDecoration: "none" }}>
                 Forgot Password?
               </Link>
             </div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-base"
-            >
-              {isLoading
-                ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Signing in...</>
-                : "Sign In"}
-            </Button>
+            {/* Submit */}
+            <button type="submit" disabled={isLoading} style={{ ...submitBtn, background: isLoading ? "#fdba74" : "#f97316", cursor: isLoading ? "not-allowed" : "pointer", marginTop: 4 }}>
+              {isLoading ? <><Loader2 size={16} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} />Signing in...</> : "Sign In"}
+            </button>
           </form>
 
-          <div className="flex items-center gap-3 my-5">
-            <Separator className="flex-1" />
-            <span className="text-xs text-gray-400 font-medium tracking-widest">OR CONTINUE WITH</span>
-            <Separator className="flex-1" />
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "20px 0" }}>
+            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: "#94a3b8", letterSpacing: ".08em" }}>OR CONTINUE WITH</span>
+            <div style={{ flex: 1, height: 1, background: "#e2e8f0" }} />
           </div>
 
-          <Button
-            variant="outline"
-            onClick={handleGoogleSignIn}
-            className="w-full h-12 border-gray-200 rounded-lg font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-            </svg>
+          {/* Google */}
+          <button onClick={() => window.location.href = GOOGLE_OAUTH_URL} style={googleBtn}>
+            <GoogleIcon />
             Sign in with Google
-          </Button>
+          </button>
 
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p style={{ textAlign: "center", fontSize: 13, color: "#64748b", marginTop: 20 }}>
             New to the library?{" "}
-            <Link href="/signup" className="text-teal-500 hover:text-teal-600 font-semibold">
-              Create an Account
-            </Link>
+            <Link href="/signup" style={{ color: "#0d9488", fontWeight: 700, textDecoration: "none" }}>Create an Account</Link>
           </p>
         </div>
-      </main>
+      </div>
 
-      <footer className="py-6 px-4">
-        <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-400 mb-2">
-          <Link href="#">Privacy Policy</Link>
-          <Link href="#">Terms of Service</Link>
-          <Link href="#">Contact Support</Link>
+      {/* Footer */}
+      <div style={{ marginTop: 28, display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", gap: 20 }}>
+          {["Privacy Policy", "Terms of Service", "Contact Support"].map(t => (
+            <Link key={t} href="#" style={{ fontSize: 12, color: "#94a3b8", textDecoration: "none" }}>{t}</Link>
+          ))}
         </div>
-        <p className="text-center text-xs text-gray-400">© 2024 CITY PUBLIC LIBRARY SYSTEM</p>
-      </footer>
+        <p style={{ fontSize: 12, color: "#94a3b8" }}>© 2024 CITY PUBLIC LIBRARY SYSTEM</p>
+      </div>
     </div>
   );
 }
+
+function GoogleIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 48 48" style={{ marginRight: 10 }}>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+    </svg>
+  );
+}
+
+// ── Shared styles ─────────────────────────────────────────────────────────────
+const ff = "'Inter', sans-serif";
+
+const pageStyle = {
+  minHeight: "100vh", width: "100%",
+  background: "#f0f4f8",
+  display: "flex", flexDirection: "column",
+  alignItems: "center", justifyContent: "center",
+  fontFamily: ff, padding: "24px 16px",
+};
+
+const cardStyle = {
+  width: "100%", maxWidth: 420,
+  background: "#fff", borderRadius: 20,
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 4px 32px rgba(0,0,0,.10)",
+  overflow: "hidden",
+};
+
+const fieldWrap = { display: "flex", flexDirection: "column", gap: 6 };
+
+const labelStyle = { fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: ff };
+
+const inputStyle = {
+  width: "100%", padding: "11px 14px",
+  border: "1.5px solid #e2e8f0", borderRadius: 10,
+  fontSize: 13, color: "#1e293b", background: "#fff",
+  outline: "none", fontFamily: ff, transition: "border-color .15s",
+};
+
+const iconStyle = {
+  position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+  width: 16, height: 16, pointerEvents: "none",
+};
+
+const eyeBtn = {
+  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+  background: "none", border: "none", cursor: "pointer", color: "#94a3b8",
+  display: "flex", alignItems: "center", padding: 0,
+};
+
+const errStyle = { fontSize: 11, color: "#ef4444", marginTop: 2 };
+
+const submitBtn = {
+  width: "100%", padding: "13px",
+  color: "#fff", border: "none", borderRadius: 12,
+  fontSize: 15, fontWeight: 700, fontFamily: ff,
+  boxShadow: "0 4px 14px rgba(249,115,22,.3)",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  transition: "background .2s",
+};
+
+const googleBtn = {
+  width: "100%", padding: "12px",
+  background: "#fff", border: "1.5px solid #e2e8f0", borderRadius: 12,
+  fontSize: 13, fontWeight: 600, color: "#1e293b",
+  cursor: "pointer", fontFamily: ff,
+  display: "flex", alignItems: "center", justifyContent: "center",
+  transition: "border-color .15s, box-shadow .15s",
+};

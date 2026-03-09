@@ -127,7 +127,7 @@ export default function HeroBanner() {
       <div style={{ position:"relative", width:170, height:235,
         flexShrink:0, marginLeft:40, zIndex:1 }}>
 
-        {/* Book */}
+        
         <div style={{
           width:"100%", height:"100%",
           transform: `translateY(${floatY}px) rotate(${rotation}deg)`,
@@ -137,7 +137,7 @@ export default function HeroBanner() {
           <BookCoverSVG />
         </div>
 
-        {/* Shadow */}
+       
         <div style={{
           position:"absolute", bottom:-14, left:"50%",
           transform: `translateX(-50%)`,

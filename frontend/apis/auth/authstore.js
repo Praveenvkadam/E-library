@@ -8,9 +8,35 @@ export function getToken() {
   return _token;
 }
 
+function decodeJWT(token) {
+  try {
+    return JSON.parse(atob(token.split(".")[1]));
+  } catch {
+    return {};
+  }
+}
+
+function normalizeRole(raw) {
+  if (!raw) return null;
+  const r = raw.toUpperCase();
+  if (r.includes("ADMIN")) return "ADMIN";
+  if (r.includes("USER"))  return "USER";
+  return r;
+}
+
+function extractRole(data, payload) {
+  const raw =
+    data?.role ||
+    payload?.role ||
+    payload?.authorities?.[0]?.authority ||
+    payload?.roles?.[0] ||
+    null;
+  return normalizeRole(raw);
+}
+
 const useAuthStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       isLoading: false,
       error: null,
@@ -37,28 +63,24 @@ const useAuthStore = create(
         try {
           const data = await authApi.login({ usernameOrEmail, password });
           _token = data.token;
-          // persist token to localStorage manually
+
           if (typeof window !== "undefined") {
             localStorage.setItem("auth-token", data.token);
           }
-          // Decode token in case role or other info is missing/incorrectly mapped
-          let payload = {};
-          try {
-            payload = JSON.parse(atob(data.token.split(".")[1]));
-          } catch (e) {
-            // ignore
-          }
-          
-          set({
-            user: { 
-              id: data.userId || payload.id, 
-              username: data.username || payload.username, 
-              email: data.email || payload.sub, 
-              provider: data.provider || payload.provider || "LOCAL", 
-              role: data.role || payload.role 
-            },
-            isLoading: false,
-          });
+
+          const payload = decodeJWT(data.token);
+
+          const user = {
+            id:       data.userId   || payload.id    || payload.sub,
+            username: data.username || payload.username,
+            name:     data.name     || payload.name,
+            email:    data.email    || payload.email  || payload.sub,
+            provider: data.provider || payload.provider || "LOCAL",
+            role:     extractRole(data, payload),
+          };
+
+          console.log("[AuthStore] login →", user);
+          set({ user, isLoading: false });
           return { success: true };
         } catch (err) {
           set({ error: err.message, isLoading: false });
@@ -69,10 +91,25 @@ const useAuthStore = create(
       // ─── Google Login ─────────────────────────────────────────
       loginWithGoogle: ({ backendToken, backendUser }) => {
         _token = backendToken;
+
         if (typeof window !== "undefined") {
           localStorage.setItem("auth-token", backendToken);
         }
-        set({ user: backendUser, isLoading: false, error: null });
+
+        const payload = decodeJWT(backendToken);
+
+        const user = {
+          ...backendUser,
+          id:       backendUser.id       || payload.id       || payload.userId,
+          username: backendUser.username || payload.username,
+          name:     backendUser.name     || payload.name,
+          email:    backendUser.email    || payload.email    || payload.sub,
+          provider: backendUser.provider || "GOOGLE",
+          role:     extractRole(backendUser, payload),
+        };
+
+        console.log("[AuthStore] Google login →", user);
+        set({ user, isLoading: false, error: null });
       },
 
       // ─── Reset Password ───────────────────────────────────────
@@ -100,11 +137,9 @@ const useAuthStore = create(
     {
       name: "auth-user",
       storage: createJSONStorage(() => localStorage),
-      // ✅ Only persist user object — token is NEVER in Zustand state
       partialize: (state) => ({ user: state.user }),
       onRehydrateStorage: () => (state) => {
-        // Restore token from separate localStorage key on client rehydration
-        if (typeof window !== "undefined") {
+        if (state && typeof window !== "undefined") {
           _token = localStorage.getItem("auth-token");
         }
       },

@@ -2,34 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Lock, ShieldCheck, ArrowLeft, Loader2, CheckCircle2, Eye, EyeOff } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Loader2, Eye, EyeOff, ArrowLeft, CheckCircle2 } from "lucide-react";
 import useAuthStore from "@/apis/auth/authstore";
 
 export default function ResetPasswordPage() {
   const { resetPassword, isLoading, clearError } = useAuthStore();
-  const [success, setSuccess] = useState(false);
-  const [showNewPassword, setShowNewPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [success, setSuccess]                   = useState(false);
+  const [showNew, setShowNew]                   = useState(false);
+  const [showConfirm, setShowConfirm]           = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    watch,
-    formState: { errors },
-  } = useForm();
-
+  const { register, handleSubmit, watch, formState: { errors } } = useForm();
   const newPassword = watch("newPassword");
 
   const onSubmit = async ({ email, newPassword }) => {
     clearError();
     const toastId = toast.loading("Resetting your password...");
     const result = await resetPassword({ email, newPassword });
-
     if (result.success) {
       toast.success("Password reset successfully! ✅", { id: toastId });
       setSuccess(true);
@@ -39,134 +29,179 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex flex-col">
-      <main className="flex-1 flex items-center justify-center px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-lg w-full max-w-md p-8">
-          {/* Icon */}
-          <div className="mb-5">
-            <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
-              <span className="text-2xl">🗝️</span>
-            </div>
+    <div style={pageStyle}>
+      <div style={cardStyle}>
+
+        {success ? (
+          /* ── Success state ── */
+          <div style={{ padding: "48px 36px", display: "flex", flexDirection: "column", alignItems: "center", gap: 16, textAlign: "center" }}>
+            <CheckCircle2 size={64} style={{ color: "#0d9488" }} />
+            <h2 style={{ fontSize: 20, fontWeight: 800, color: "#1e293b", margin: 0, fontFamily: ff }}>Password Reset!</h2>
+            <p style={{ fontSize: 13, color: "#64748b", fontFamily: ff }}>You can now sign in with your new password.</p>
+            <Link href="/login" style={{
+              display: "inline-block", marginTop: 8, padding: "12px 32px",
+              background: "#f97316", color: "#fff", borderRadius: 12,
+              fontSize: 14, fontWeight: 700, textDecoration: "none", fontFamily: ff,
+              boxShadow: "0 4px 14px rgba(249,115,22,.3)",
+            }}>
+              Go to Sign In
+            </Link>
           </div>
-
-          <h1 className="text-2xl font-bold text-blue-900 mb-2">Reset Password</h1>
-          <p className="text-gray-500 text-sm mb-7 leading-relaxed">
-            Please provide your email and choose a new password for your library account.
-          </p>
-
-          {success ? (
-            <div className="text-center py-6 space-y-4">
-              <div className="flex justify-center">
-                <CheckCircle2 className="w-16 h-16 text-teal-500" />
+        ) : (
+          <>
+            {/* ── Header ── */}
+            <div style={{ padding: "32px 36px 24px", borderBottom: "1px solid #f1f5f9" }}>
+              <div style={{ width: 48, height: 48, background: "#fef9c3", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 16, fontSize: 24 }}>
+                🗝️
               </div>
-              <p className="text-gray-700 font-medium">Password reset successfully!</p>
-              <p className="text-gray-500 text-sm">You can now sign in with your new password.</p>
-              <Button asChild className="w-full h-11 bg-orange-500 hover:bg-orange-600 text-white rounded-lg mt-2">
-                <Link href="/login">Go to Sign In</Link>
-              </Button>
+              <h1 style={{ fontSize: 22, fontWeight: 800, color: "#1e3a5f", margin: "0 0 6px", letterSpacing: "-.3px", fontFamily: ff }}>Reset Password</h1>
+              <p style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6, margin: 0, fontFamily: ff }}>
+                Please provide your email and choose a new password for your library account.
+              </p>
             </div>
-          ) : (
-            <>
-              <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+
+            {/* ── Form ── */}
+            <div style={{ padding: "28px 36px 36px" }}>
+              <form onSubmit={handleSubmit(onSubmit)} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
                 {/* Email */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-gray-700 font-medium">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="librarian@example.com"
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Email Address</label>
+                  <div style={{ position: "relative" }}>
+                    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>
+                    </svg>
+                    <input type="email" placeholder="librarian@example.com"
                       {...register("email", {
                         required: "Email is required",
                         pattern: { value: /^\S+@\S+\.\S+$/, message: "Enter a valid email" },
                       })}
-                      className="pl-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
+                      style={{ ...inputStyle, paddingLeft: 40 }}
+                      onFocus={e => e.target.style.borderColor = "#0d9488"}
+                      onBlur={e => e.target.style.borderColor = errors.email ? "#ef4444" : "#e2e8f0"}
                     />
                   </div>
-                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+                  {errors.email && <p style={errStyle}>{errors.email.message}</p>}
                 </div>
 
                 {/* New Password */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="newPassword" className="text-gray-700 font-medium">New Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="newPassword"
-                      type={showNewPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>New Password</label>
+                  <div style={{ position: "relative" }}>
+                    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    <input type={showNew ? "text" : "password"} placeholder="••••••••"
                       {...register("newPassword", {
                         required: "New password is required",
                         minLength: { value: 8, message: "Minimum 8 characters" },
                       })}
-                      className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
+                      style={{ ...inputStyle, paddingLeft: 40, paddingRight: 44 }}
+                      onFocus={e => e.target.style.borderColor = "#0d9488"}
+                      onBlur={e => e.target.style.borderColor = errors.newPassword ? "#ef4444" : "#e2e8f0"}
                     />
-                    <button type="button" onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button type="button" onClick={() => setShowNew(p => !p)} style={eyeBtn}>
+                      {showNew ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
-                  {errors.newPassword && <p className="text-red-500 text-xs mt-1">{errors.newPassword.message}</p>}
+                  {errors.newPassword && <p style={errStyle}>{errors.newPassword.message}</p>}
                 </div>
 
                 {/* Confirm Password */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="confirmPassword" className="text-gray-700 font-medium">Confirm Password</Label>
-                  <div className="relative">
-                    <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <Input
-                      id="confirmPassword"
-                      type={showConfirmPassword ? "text" : "password"}
-                      placeholder="••••••••"
+                <div style={fieldWrap}>
+                  <label style={labelStyle}>Confirm Password</label>
+                  <div style={{ position: "relative" }}>
+                    <svg style={iconStyle} viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <input type={showConfirm ? "text" : "password"} placeholder="••••••••"
                       {...register("confirmPassword", {
                         required: "Please confirm your password",
-                        validate: (val) => val === newPassword || "Passwords do not match",
+                        validate: val => val === newPassword || "Passwords do not match",
                       })}
-                      className="pl-10 pr-10 border-gray-200 rounded-lg h-11 focus-visible:ring-blue-400"
+                      style={{ ...inputStyle, paddingLeft: 40, paddingRight: 44 }}
+                      onFocus={e => e.target.style.borderColor = "#0d9488"}
+                      onBlur={e => e.target.style.borderColor = errors.confirmPassword ? "#ef4444" : "#e2e8f0"}
                     />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    <button type="button" onClick={() => setShowConfirm(p => !p)} style={eyeBtn}>
+                      {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
-                  {errors.confirmPassword && (
-                    <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>
-                  )}
+                  {errors.confirmPassword && <p style={errStyle}>{errors.confirmPassword.message}</p>}
                 </div>
 
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-full h-12 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg text-base"
-                >
-                  {isLoading ? (
-                    <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Resetting...</>
-                  ) : (
-                    "Reset Password"
-                  )}
-                </Button>
+                {/* Submit */}
+                <button type="submit" disabled={isLoading} style={{ ...submitBtn, background: isLoading ? "#fdba74" : "#f97316", cursor: isLoading ? "not-allowed" : "pointer", marginTop: 4 }}>
+                  {isLoading
+                    ? <><Loader2 size={16} style={{ marginRight: 8, animation: "spin 1s linear infinite" }} />Resetting...</>
+                    : "Reset Password"}
+                </button>
               </form>
 
-              <div className="flex justify-center mt-6">
-                <Link
-                  href="/login"
-                  className="flex items-center gap-1.5 text-sm text-teal-500 hover:text-teal-600 font-medium"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back to Login
+              <div style={{ display: "flex", justifyContent: "center", marginTop: 20 }}>
+                <Link href="/login" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#0d9488", textDecoration: "none", fontFamily: ff }}>
+                  <ArrowLeft size={14} /> Back to Login
                 </Link>
               </div>
-            </>
-          )}
-        </div>
-      </main>
+            </div>
+          </>
+        )}
+      </div>
 
-      <footer className="py-5 px-4">
-        <p className="text-center text-xs text-gray-400 tracking-widest">
-          SECURE LIBRARY ACCESS • 2024 PORTAL
-        </p>
-      </footer>
+      <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 24, letterSpacing: ".08em", fontFamily: ff }}>
+        SECURE LIBRARY ACCESS • 2024 PORTAL
+      </p>
     </div>
   );
 }
+
+// ── Shared styles ─────────────────────────────────────────────────────────────
+const ff = "'Inter', sans-serif";
+
+const pageStyle = {
+  minHeight: "100vh", width: "100%",
+  background: "#f0f4f8",
+  display: "flex", flexDirection: "column",
+  alignItems: "center", justifyContent: "center",
+  fontFamily: ff, padding: "32px 16px",
+};
+
+const cardStyle = {
+  width: "100%", maxWidth: 440,
+  background: "#fff", borderRadius: 20,
+  border: "1px solid #e2e8f0",
+  boxShadow: "0 4px 32px rgba(0,0,0,.10)",
+  overflow: "hidden",
+};
+
+const fieldWrap  = { display: "flex", flexDirection: "column", gap: 6 };
+const labelStyle = { fontSize: 13, fontWeight: 600, color: "#374151", fontFamily: ff };
+
+const inputStyle = {
+  width: "100%", padding: "11px 14px",
+  border: "1.5px solid #e2e8f0", borderRadius: 10,
+  fontSize: 13, color: "#1e293b", background: "#fff",
+  outline: "none", fontFamily: ff, transition: "border-color .15s",
+};
+
+const iconStyle = {
+  position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+  width: 16, height: 16, pointerEvents: "none",
+};
+
+const eyeBtn = {
+  position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)",
+  background: "none", border: "none", cursor: "pointer",
+  color: "#94a3b8", display: "flex", alignItems: "center", padding: 0,
+};
+
+const errStyle = { fontSize: 11, color: "#ef4444", marginTop: 2 };
+
+const submitBtn = {
+  width: "100%", padding: "13px",
+  color: "#fff", border: "none", borderRadius: 12,
+  fontSize: 15, fontWeight: 700, fontFamily: ff,
+  boxShadow: "0 4px 14px rgba(249,115,22,.3)",
+  display: "flex", alignItems: "center", justifyContent: "center",
+  transition: "background .2s",
+};

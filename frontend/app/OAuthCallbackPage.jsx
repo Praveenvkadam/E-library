@@ -5,19 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import useAuthStore from "@/apis/auth/authstore";
-import { authApi } from "@/lib/authapi";
 
-/**
- * Root page — handles the redirect from Spring Boot OAuth2:
- *   http://localhost:3000/?token=<JWT>
- *
- * Extracts the token, fetches user info from the backend,
- * stores everything in Zustand, then redirects to /dashboard.
- *
- * Also handles error redirects:
- *   ?error=unverified
- *   ?error=use_password_login
- */
 export default function OAuthCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -27,7 +15,6 @@ export default function OAuthCallbackPage() {
     const token = searchParams.get("token");
     const error = searchParams.get("error");
 
-    // Handle backend error redirects
     if (error) {
       const messages = {
         unverified: "Your Google account email is not verified.",
@@ -38,32 +25,46 @@ export default function OAuthCallbackPage() {
       return;
     }
 
-    // If no token and already authenticated, go to dashboard
     if (!token) {
-      if (isAuthenticated()) {
-        router.replace("/dashboard");
-      } else {
-        router.replace("/login");
-      }
+      isAuthenticated() ? router.replace("/dashboard") : router.replace("/login");
       return;
     }
 
-    // Exchange token for full user info
     const handleToken = async () => {
       const toastId = toast.loading("Completing Google sign-in...");
       try {
-        const data = await authApi.processToken(token);
+        // ✅ Decode JWT directly — avoids broken processToken URL routing
+        let payload = {};
+        try {
+          payload = JSON.parse(atob(token.split(".")[1]));
+        } catch {
+          throw new Error("Invalid token received.");
+        }
+
+        console.log("[OAuth] JWT payload →", payload); // remove after confirming role shows
+
+        const rawRole =
+          payload.role ||
+          payload.authorities?.[0]?.authority ||
+          payload.roles?.[0] ||
+          null;
+
+        const normalizedRole = rawRole
+          ? rawRole.toUpperCase().includes("ADMIN") ? "ADMIN" : "USER"
+          : null;
+
         loginWithGoogle({
           backendToken: token,
           backendUser: {
-            id: data.id,
-            username: data.username,
-            email: data.email,
-            provider: data.provider,
-            role: data.role,
+            id:       payload.id       || payload.userId,
+            username: payload.username || payload.name,
+            email:    payload.email    || payload.sub,
+            provider: "GOOGLE",
+            role:     normalizedRole,
           },
         });
-        toast.success(`Welcome, ${data.username}! 👋`, { id: toastId });
+
+        toast.success(`Welcome back! 👋`, { id: toastId });
         router.replace("/dashboard");
       } catch (err) {
         toast.error(err.message || "Google sign-in failed.", { id: toastId });
