@@ -1,3 +1,4 @@
+"use client";
 import BookCard from "./BookCard";
 
 // ── Sample data — replace with your API / props ───────────────────────────────

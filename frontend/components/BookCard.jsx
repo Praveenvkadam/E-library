@@ -1,46 +1,8 @@
+"use client";
+
 // ── BookCard.jsx ──────────────────────────────────────────────────────────────
-// Props:
-//   book: { id, title, author, genre, badge?, badgeColor?, bg, cover }
-//   onBorrow?: (book) => void
+import { useState } from "react";
 
-const CARD_STYLES = `
-  .book-card {
-    background: #fff;
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0,0,0,.07);
-    transition: transform .2s, box-shadow .2s;
-    font-family: 'Inter', sans-serif;
-  }
-  .book-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 30px rgba(0,0,0,.13);
-  }
-  .btn-borrow-card {
-    width: 100%;
-    background: #fff;
-    color: #0d9488;
-    border: 1.5px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 9px 0;
-    font-weight: 600;
-    font-size: 13px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 6px;
-    transition: background .15s, border-color .15s, transform .15s;
-    font-family: 'Inter', sans-serif;
-  }
-  .btn-borrow-card:hover {
-    background: #f0fdfa;
-    border-color: #0d9488;
-    transform: translateY(-1px);
-  }
-`;
-
-// ── Thumbnail SVG ─────────────────────────────────────────────────────────────
 function BookThumb({ book }) {
   return (
     <svg
@@ -65,29 +27,34 @@ function BookThumb({ book }) {
         fontSize="5.5" fontFamily="sans-serif">
         {book.author}
       </text>
-      {/* Gloss */}
       <rect x="10" y="0" width="16" height="160" fill="white" opacity=".04" />
     </svg>
   );
 }
 
-// ── BookCard ──────────────────────────────────────────────────────────────────
 export default function BookCard({ book, onBorrow }) {
-  // Inject styles once (idempotent guard via data attribute)
-  if (typeof document !== "undefined" && !document.querySelector("[data-bookcard-styles]")) {
-    const tag = document.createElement("style");
-    tag.setAttribute("data-bookcard-styles", "true");
-    tag.textContent = CARD_STYLES;
-    document.head.appendChild(tag);
-  }
+  const [hovered, setHovered]       = useState(false);
+  const [btnHovered, setBtnHovered] = useState(false);
 
   return (
-    <div className="book-card">
-      {/* Cover image */}
+    <div
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: "#fff",
+        borderRadius: 16,
+        overflow: "hidden",
+        boxShadow: hovered
+          ? "0 10px 30px rgba(0,0,0,.13)"
+          : "0 2px 12px rgba(0,0,0,.07)",
+        transform: hovered ? "translateY(-5px)" : "translateY(0)",
+        transition: "transform .2s, box-shadow .2s",
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
+      {/* Cover */}
       <div style={{ position: "relative", height: 200 }}>
         <BookThumb book={book} />
-
-        {/* Badge */}
         {book.badge && (
           <div style={{
             position: "absolute", top: 10, left: 10,
@@ -96,7 +63,6 @@ export default function BookCard({ book, onBorrow }) {
             fontSize: 10, fontWeight: 700,
             padding: "3px 8px", borderRadius: 4,
             letterSpacing: ".5px",
-            fontFamily: "'Inter', sans-serif",
           }}>
             {book.badge}
           </div>
@@ -114,7 +80,31 @@ export default function BookCard({ book, onBorrow }) {
         <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>
           {book.author}
         </div>
-        <button className="btn-borrow-card" onClick={() => onBorrow?.(book)}>
+
+        {/* Borrow button */}
+        <button
+          onMouseEnter={() => setBtnHovered(true)}
+          onMouseLeave={() => setBtnHovered(false)}
+          onClick={() => onBorrow?.(book)}
+          style={{
+            width: "100%",
+            background: btnHovered ? "#f0fdfa" : "#fff",
+            color: "#0d9488",
+            border: `1.5px solid ${btnHovered ? "#0d9488" : "#e2e8f0"}`,
+            borderRadius: 10,
+            padding: "9px 0",
+            fontWeight: 600,
+            fontSize: 13,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 6,
+            transform: btnHovered ? "translateY(-1px)" : "translateY(0)",
+            transition: "background .15s, border-color .15s, transform .15s",
+            fontFamily: "'Inter', sans-serif",
+          }}
+        >
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" strokeWidth="2.5">
             <rect x="3" y="3" width="18" height="18" rx="2" />
