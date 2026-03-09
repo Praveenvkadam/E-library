@@ -124,3 +124,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* globals.css */
+/* Reset everything — no hidden max-width or container constraints */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100%;
+  min-height: 100vh;
+  font-family: 'Inter', sans-serif;
+  background: #f0f4f8;
+  color: #1e293b;
+}
+
+/* Remove any Next.js default container that causes side gaps */
+#__next,
+main,
+.container {
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  width: 100% !important;
+}
