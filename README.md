@@ -38,7 +38,7 @@ This project follows a **microservices architecture** pattern with the following
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (React/Web)                      │
+│                        Frontend (Next JS)                      │
 └────────────────────┬────────────────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────────────────┐
@@ -64,16 +64,16 @@ This project follows a **microservices architecture** pattern with the following
 
 ## 🔧 Technology Stack
 
-- **Language**: Java
+- **Language**: Java,JS
 - **Architecture**: Microservices
 - **API Gateway**: Spring Cloud Gateway
 - **Service Discovery**: Eureka
 - **Authentication**: JWT-based security
 - **Frontend**: Modern responsive web framework
 - **Payment Processing**: Subscription payment service
-- **AI/ML**: AI service for recommendations
+- **AI/ML**: AI service for recommendations(gemini,sarvam)
 - **Email**: Mail service for notifications
-- **Build Tools**: Maven/Gradle
+- **Build Tools**: Maven
 - **IDE Support**: IntelliJ IDEA, VS Code
 
 ## 📁 Project Structure
@@ -101,7 +101,7 @@ E-library/
 - Java 11 or higher
 - Maven 3.6+ or Gradle 6.0+
 - Node.js 14+ (for frontend)
-- MySQL/PostgreSQL (for database)
+- MySQL,PostgreSQL,MongoDB (for database)
 - Git
 
 ### Installation
