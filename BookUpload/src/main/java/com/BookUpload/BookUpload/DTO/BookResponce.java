@@ -3,6 +3,7 @@ package com.BookUpload.BookUpload.DTO;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.Date;
 
+
 public record BookResponce(
         @JsonProperty("id")          Long B_id,
         @JsonProperty("name")        String B_name,

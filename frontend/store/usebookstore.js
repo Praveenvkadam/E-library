@@ -9,70 +9,66 @@ import {
 
 // ---------------------------------------------------------------------------
 // normalizeBook
-// Handles all possible Jackson serialization variants from Spring Boot:
-//   B_name  /  b_name  /  bName  (same for all fields)
-// Always produces a consistent lowercase snake_case shape the UI can rely on.
+// Maps the raw API response (using @JsonProperty names from BookResponce.java)
+// to a consistent internal shape used throughout the UI.
+//
+// BookResponce @JsonProperty → internal field
+//   "id"          → b_id
+//   "name"        → b_name
+//   "author"      → b_author
+//   "description" → b_description
+//   "imageUrl"    → b_imageUrl
+//   "pdfUrl"      → b_pdfUrl
+//   "releaseDate" → releaseDate
+//   "category"    → b_category
+//   "language"    → b_language
 // ---------------------------------------------------------------------------
 function normalizeBook(raw) {
-  if (!raw) return raw;
-
-  // Debug — remove after confirming field names
-  console.log("[useBookStore] raw book from API:", raw);
-
+  if (!raw) return null;
   return {
-    // ID
-    b_id:        raw.b_id        ?? raw.B_id        ?? raw.bId        ?? raw.id        ?? null,
-
-    // Text fields
-    b_name:      raw.b_name      ?? raw.B_name      ?? raw.bName      ?? raw.name      ?? "",
-    b_author:    raw.b_author    ?? raw.B_author    ?? raw.bAuthor    ?? raw.author    ?? "",
-    b_description: raw.b_description ?? raw.B_description ?? raw.bDescription ?? raw.description ?? "",
-
-    // Media URLs
-    b_imageUrl:  raw.b_imageUrl  ?? raw.B_imageUrl  ?? raw.bImageUrl  ?? raw.imageUrl  ?? null,
-    b_pdfUrl:    raw.b_pdfUrl    ?? raw.B_pdfUrl    ?? raw.bPdfUrl    ?? raw.pdfUrl    ?? null,
-
-    // Metadata
-    releaseDate: raw.releaseDate ?? raw.ReleaseDate ?? null,
-    b_category:  raw.b_category  ?? raw.B_category  ?? raw.B_Category ?? raw.bCategory ?? raw.category  ?? "",
-    b_language:  raw.b_language  ?? raw.B_language  ?? raw.B_Language ?? raw.bLanguage ?? raw.language  ?? "",
+    b_id:          raw.id          ?? null,
+    b_name:        raw.name        ?? "",
+    b_author:      raw.author      ?? "",
+    b_description: raw.description ?? "",
+    b_imageUrl:    raw.imageUrl    ?? null,
+    b_pdfUrl:      raw.pdfUrl      ?? null,
+    releaseDate:   raw.releaseDate ?? null,
+    b_category:    raw.category    ?? "",
+    b_language:    raw.language    ?? "",
   };
 }
 
 function normalizeList(list) {
   if (!Array.isArray(list)) return [];
-  return list.map(normalizeBook);
+  return list.map(normalizeBook).filter(Boolean);
 }
 
 // ---------------------------------------------------------------------------
-
 const useBookStore = create((set) => ({
-  // --- state -----------------------------------------------------------------
+
+  // --- state ----------------------------------------------------------------
   books:         [],
   selectedBook:  null,
-  isUploading:   false,
-  isLoadingList: false,
+  isUploading:   false,   // upload / update / delete spinner
+  isLoadingList: false,   // sidebar / catalog loading
   error:         null,
   successMsg:    null,
 
-  // --- helpers ---------------------------------------------------------------
+  // --- helpers --------------------------------------------------------------
   clearMessages: () => set({ error: null, successMsg: null }),
   selectBook:    (book) => set({ selectedBook: book }),
   clearSelected: () => set({ selectedBook: null }),
 
-  // --- upload ----------------------------------------------------------------
+  // --- upload ---------------------------------------------------------------
   upload: async ({ bookRequest, imageFile, pdfFile }) => {
     set({ isUploading: true, error: null, successMsg: null });
     try {
-      const raw     = await uploadBook({ bookRequest, imageFile, pdfFile });
-      const newBook = normalizeBook(raw);
-
-      set((state) => ({
-        books:       [newBook, ...state.books],
+      const newBook = normalizeBook(await uploadBook({ bookRequest, imageFile, pdfFile }));
+      set((s) => ({
+        books:       [newBook, ...s.books],
         isUploading: false,
-        successMsg:  '"' + (newBook.b_name || "Book") + '" uploaded successfully!',
+        successMsg:  `"${newBook.b_name || "Book"}" uploaded successfully!`,
       }));
-
       return { success: true, book: newBook };
     } catch (err) {
       set({ error: err.message, isUploading: false });
@@ -80,20 +76,17 @@ const useBookStore = create((set) => ({
     }
   },
 
-  // --- update ----------------------------------------------------------------
+  // --- update ---------------------------------------------------------------
   update: async (bookId, { bookRequest, imageFile, pdfFile }) => {
     set({ isUploading: true, error: null, successMsg: null });
     try {
-      const raw     = await updateBook({ bookId, bookRequest, imageFile, pdfFile });
-      const updated = normalizeBook(raw);
-
-      set((state) => ({
-        books:        state.books.map((b) => (b.b_id === bookId ? updated : b)),
+      const updated = normalizeBook(await updateBook({ bookId, bookRequest, imageFile, pdfFile }));
+      set((s) => ({
+        books:        s.books.map((b) => (b.b_id === bookId ? updated : b)),
         selectedBook: null,
         isUploading:  false,
-        successMsg:   '"' + (updated.b_name || "Book") + '" updated successfully!',
+        successMsg:   `"${updated.b_name || "Book"}" updated successfully!`,
       }));
-
       return { success: true, book: updated };
     } catch (err) {
       set({ error: err.message, isUploading: false });
@@ -101,19 +94,16 @@ const useBookStore = create((set) => ({
     }
   },
 
-  // --- delete ----------------------------------------------------------------
+  // --- delete ---------------------------------------------------------------
   remove: async (bookId) => {
     set({ isUploading: true, error: null, successMsg: null });
     try {
-      const raw  = await deleteBook(bookId);
-      const name = normalizeBook(raw)?.b_name || "Book";
-
-      set((state) => ({
-        books:       state.books.filter((b) => b.b_id !== bookId),
+      const deleted = normalizeBook(await deleteBook(bookId));
+      set((s) => ({
+        books:       s.books.filter((b) => b.b_id !== bookId),
         isUploading: false,
-        successMsg:  '"' + name + '" deleted.',
+        successMsg:  `"${deleted?.b_name || "Book"}" deleted.`,
       }));
-
       return { success: true };
     } catch (err) {
       set({ error: err.message, isUploading: false });
@@ -121,12 +111,11 @@ const useBookStore = create((set) => ({
     }
   },
 
-  // --- load all --------------------------------------------------------------
+  // --- load all -------------------------------------------------------------
   loadAll: async () => {
     set({ isLoadingList: true, error: null });
     try {
-      const raw   = await fetchAllBooks();
-      const books = normalizeList(raw);
+      const books = normalizeList(await fetchAllBooks());
       set({ books, isLoadingList: false });
       return { success: true };
     } catch (err) {
@@ -135,12 +124,11 @@ const useBookStore = create((set) => ({
     }
   },
 
-  // --- search ----------------------------------------------------------------
+  // --- search ---------------------------------------------------------------
   search: async (filters = {}) => {
     set({ isLoadingList: true, error: null });
     try {
-      const raw   = await searchBooks(filters);
-      const books = normalizeList(raw);
+      const books = normalizeList(await searchBooks(filters));
       set({ books, isLoadingList: false });
       return { success: true };
     } catch (err) {

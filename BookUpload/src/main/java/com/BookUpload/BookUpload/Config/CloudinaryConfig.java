@@ -1,32 +1,33 @@
 package com.BookUpload.BookUpload.Config;
 
 import com.cloudinary.Cloudinary;
+import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-
-import java.util.Map;
 
 @Configuration
 public class CloudinaryConfig {
 
     @Value("${cloudinary.cloud-name}")
-    String CLOUD_NAME ;
+    private String cloudName;
 
     @Value("${cloudinary.api-key}")
-    String Api_key ;
+    private String apiKey;
 
     @Value("${cloudinary.api-secret}")
-    String Api_secret ;
+    private String apiSecret;
 
     @Bean
     public Cloudinary cloudinary() {
-        return new Cloudinary(Map.of(
-
-                "cloud_name", CLOUD_NAME,
-                "api_key", Api_key,
-                "api_secret", Api_secret
+        return new Cloudinary(ObjectUtils.asMap(
+                "cloud_name",         cloudName,
+                "api_key",            apiKey,
+                "api_secret",         apiSecret,
+                "secure",             true,
+                "connection_timeout", 5000,
+                "read_timeout",       15000,
+                "socket_timeout",     15000
         ));
     }
 }
-

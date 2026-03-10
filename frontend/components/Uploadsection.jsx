@@ -268,7 +268,7 @@ function DeleteModal({ book, onConfirm, onClose, isDeleting }) {
 // Update Modal
 // ---------------------------------------------------------------------------
 
-function UpdateModal({ book, onClose }) {
+function UpdateModal({ book, onClose, onSuccess }) {
   const { update, isUploading } = useBookStore();
 
   const [title,       setTitle]       = useState(book.b_name        || "");
@@ -293,18 +293,8 @@ function UpdateModal({ book, onClose }) {
   };
 
   const handleSubmit = async () => {
-    // Try every possible field name Spring Boot might send
-    const bookId = book.b_id ?? book.B_id ?? book.bId ?? book.id ?? null;
-
-    // Debug: open browser console to confirm bookId and field names
-    console.log("[UpdateModal] book object:", JSON.stringify(book));
-    console.log("[UpdateModal] resolved bookId:", bookId);
-
-    if (!bookId) {
-      console.error("[UpdateModal] bookId is null — check API field names");
-      alert("Cannot update: book ID is missing. Check the browser console.");
-      return;
-    }
+    const bookId = book.b_id ?? null;
+    if (!bookId) return;
 
     const bookRequest = {
       B_name:        title,
@@ -321,7 +311,10 @@ function UpdateModal({ book, onClose }) {
       pdfFile:   newPdfFile   || null,
     });
 
-    if (result.success) onClose();
+    if (result.success) {
+      if (onSuccess) onSuccess();
+      else onClose();
+    }
   };
 
   return (
@@ -507,9 +500,10 @@ export default function UploadSection({ setActivePage }) {
 
   const handleDelete = async () => {
     if (!deleteBook) return;
-    const id = deleteBook.b_id ?? deleteBook.id;
+    const id = deleteBook.b_id ?? null;
+    if (!id) return;
     const result = await remove(id);
-    if (result.success) setDeleteBook(null);
+    if (result.success) { setDeleteBook(null); loadAll(); }
   };
 
   const recentBooks = books.slice(0, 6);
@@ -536,7 +530,7 @@ export default function UploadSection({ setActivePage }) {
 
       {/* Modals */}
       {previewBook && <PreviewModal book={previewBook} onClose={() => setPreviewBook(null)} />}
-      {updateBook  && <UpdateModal  book={updateBook}  onClose={() => { setUpdateBook(null); loadAll(); }} />}
+      {updateBook  && <UpdateModal  book={updateBook}  onClose={() => setUpdateBook(null)} onSuccess={() => { setUpdateBook(null); loadAll(); }} />}
       {deleteBook  && (
         <DeleteModal
           book={deleteBook}

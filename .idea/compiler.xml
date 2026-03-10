@@ -12,15 +12,6 @@
         <module name="UserProfile" />
         <module name="Eureka" />
       </profile>
-      <profile name="Annotation profile for Authentication" enabled="true">
-        <sourceOutputDir name="target/generated-sources/annotations" />
-        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
-        <outputRelativeToContentRoot value="true" />
-        <processorPath useClasspath="false">
-          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar" />
-        </processorPath>
-        <module name="Authentication" />
-      </profile>
       <profile name="Annotation profile for Api_Gateway" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
@@ -39,10 +30,16 @@
         </processorPath>
         <module name="subscriptionpayment" />
       </profile>
+      <profile name="Annotation profile for Authentication" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.32/lombok-1.18.32.jar" />
+        </processorPath>
+        <module name="Authentication" />
+      </profile>
     </annotationProcessing>
-    <bytecodeTargetLevel>
-      <module name="Notification" target="17" />
-    </bytecodeTargetLevel>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
@@ -51,7 +48,6 @@
       <module name="BookUpload" options="-parameters" />
       <module name="Eureka" options="-parameters" />
       <module name="MailService" options="-parameters" />
-      <module name="Notification" options="-parameters" />
       <module name="UserProfile" options="-parameters" />
       <module name="subscriptionpayment" options="-parameters" />
     </option>

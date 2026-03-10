@@ -3,17 +3,15 @@ import { getToken } from "@/store/authstore";
 import useAuthStore from "@/store/authstore";
 
 
-
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_BOOK_API_URL || "http://localhost:8081",
   timeout: 60000,
 });
 
-// --- Request interceptor: attach JWT + X-User-* headers ---------------------
 
 api.interceptors.request.use((config) => {
   const token = getToken();
-  const user = useAuthStore.getState().user;
+  const user  = useAuthStore.getState().user;
 
   if (token) {
     config.headers["Authorization"] = "Bearer " + token;
@@ -26,19 +24,12 @@ api.interceptors.request.use((config) => {
     config.headers["X-User-Roles"] = user.role ? "ROLE_" + user.role : "";
   }
 
-  console.log("[bookApi] request ->", config.method?.toUpperCase(), config.url);
-  console.log("[bookApi] headers ->", {
-    hasToken:       !!config.headers["Authorization"],
-    "X-User-Id":    config.headers["X-User-Id"],
-    "X-User-Email": config.headers["X-User-Email"],
-    "X-User-Roles": config.headers["X-User-Roles"],
-  });
-
   return config;
 });
 
-// --- Response interceptor: surface real Spring Boot error message -----------
-
+// ---------------------------------------------------------------------------
+// Response interceptor — surface real Spring Boot error message
+// ---------------------------------------------------------------------------
 api.interceptors.response.use(
   (response) => response.data,
 
@@ -53,25 +44,25 @@ api.interceptors.response.use(
         data?.error                        ? data.error   :
         "Server error " + status;
 
-      console.error("[bookApi] " + status + " -- " + msg);
       return Promise.reject(new Error(msg));
 
     } else if (error.request) {
-      console.error("[bookApi] No response -- is Spring Boot running?");
-      return Promise.reject(new Error("No response from server -- check Spring Boot is running on port 8081"));
+      const url = (error.config?.baseURL || "") + (error.config?.url || "");
+      return Promise.reject(new Error(
+        "No response from server. URL: " + url + " — check Spring Boot is running on port 8081"
+      ));
 
     } else {
-      console.error("[bookApi] Request error:", error.message);
       return Promise.reject(new Error(error.message));
     }
   }
 );
 
-// --- Upload Book: POST /api/books/upload ------------------------------------
-
+// ---------------------------------------------------------------------------
+// Upload Book — POST /api/books/upload
+// ---------------------------------------------------------------------------
 export async function uploadBook({ bookRequest, imageFile, pdfFile }) {
   const formData = new FormData();
-
   formData.append("bookName",        bookRequest.B_name);
   formData.append("bookAuthor",      bookRequest.B_author);
   formData.append("bookDescription", bookRequest.B_description);
@@ -81,25 +72,18 @@ export async function uploadBook({ bookRequest, imageFile, pdfFile }) {
   formData.append("imageFile",       imageFile);
   formData.append("pdfFile",         pdfFile);
 
-  console.log("[bookApi] FormData ->", {
-    bookName:        bookRequest.B_name,
-    bookAuthor:      bookRequest.B_author,
-    bookDescription: bookRequest.B_description,
-    releaseDate:     bookRequest.releaseDate,
-    bookCategory:    bookRequest.B_Category,
-    bookLanguage:    bookRequest.B_Language,
-    imageFile:       imageFile?.name,
-    pdfFile:         pdfFile?.name,
-  });
-
-  return api.post("/api/books/upload", formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Do NOT set Content-Type manually — browser sets it with the correct boundary
+  return api.post("/api/books/upload", formData);
 }
 
-// --- Update Book: PUT /api/books/{id} ---------------------------------------
-
+// ---------------------------------------------------------------------------
+// Update Book — PUT /api/books/{id}
+// ---------------------------------------------------------------------------
 export async function updateBook({ bookId, bookRequest, imageFile, pdfFile }) {
+  if (!bookId || bookId === "null" || bookId === "undefined") {
+    return Promise.reject(new Error("Book ID is missing — cannot update."));
+  }
+
   const formData = new FormData();
   formData.append("bookName",        bookRequest.B_name);
   formData.append("bookAuthor",      bookRequest.B_author);
@@ -110,25 +94,30 @@ export async function updateBook({ bookId, bookRequest, imageFile, pdfFile }) {
   if (imageFile) formData.append("imageFile", imageFile);
   if (pdfFile)   formData.append("pdfFile",   pdfFile);
 
-  return api.put("/api/books/" + bookId, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
-  });
+  // Do NOT set Content-Type manually
+  return api.put("/api/books/" + bookId, formData);
 }
 
-// --- Delete Book: DELETE /api/books/{id} ------------------------------------
-
+// ---------------------------------------------------------------------------
+// Delete Book — DELETE /api/books/{id}
+// ---------------------------------------------------------------------------
 export async function deleteBook(bookId) {
+  if (!bookId || bookId === "null" || bookId === "undefined") {
+    return Promise.reject(new Error("Book ID is missing — cannot delete."));
+  }
   return api.delete("/api/books/" + bookId);
 }
 
-// --- Get All Books: GET /api/books ------------------------------------------
-
+// ---------------------------------------------------------------------------
+// Get All Books — GET /api/books
+// ---------------------------------------------------------------------------
 export async function fetchAllBooks() {
   return api.get("/api/books");
 }
 
-// --- Search Books: GET /api/books/search ------------------------------------
-
+// ---------------------------------------------------------------------------
+// Search Books — GET /api/books/search
+// ---------------------------------------------------------------------------
 export async function searchBooks({
   B_name, B_author, releaseDate, B_Category, B_Language
 } = {}) {
