@@ -1,39 +1,48 @@
 package com.user.UserProfile.RateLimit;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
-@RequiredArgsConstructor
 public class RateLimitService {
 
-    private final RateLimitConfig config;
+    @Value("${rate-limit.create:3}")
+    private int createLimit;
 
-    // Key: "userId:operation" → [requestCount, windowStartEpochSecond]
-    private final Map<String, long[]> requestTracker = new ConcurrentHashMap<>();
+    @Value("${rate-limit.read:30}")
+    private int readLimit;
 
-    private static final long WINDOW_SECONDS = 60L; // 1 minute window
+    @Value("${rate-limit.update:5}")
+    private int updateLimit;
+
+    @Value("${rate-limit.delete:2}")
+    private int deleteLimit;
+
+    // key: userId:operation:minuteBucket → count
+    private final Map<String, AtomicInteger> requestCounts = new ConcurrentHashMap<>();
 
     public boolean isAllowed(String userId, String operation) {
-        int maxRequests = config.getLimitPerMinute()
-                .getOrDefault(operation, 10); // fallback: 10/min
+        String key = userId + ":" + operation + ":" + getCurrentMinuteBucket();
+        AtomicInteger count = requestCounts.computeIfAbsent(key, k -> new AtomicInteger(0));
+        int current = count.incrementAndGet();
+        return current <= getLimit(operation);
+    }
 
-        String key = userId + ":" + operation;
-        long now = Instant.now().getEpochSecond();
+    private int getLimit(String operation) {
+        return switch (operation) {
+            case "create" -> createLimit;
+            case "read"   -> readLimit;
+            case "update" -> updateLimit;
+            case "delete" -> deleteLimit;
+            default       -> 10;
+        };
+    }
 
-        requestTracker.compute(key, (k, val) -> {
-            if (val == null || (now - val[1]) >= WINDOW_SECONDS) {
-                return new long[]{1, now}; // reset window
-            }
-            val[0]++;
-            return val;
-        });
-
-        long[] current = requestTracker.get(key);
-        return current[0] <= maxRequests;
+    private long getCurrentMinuteBucket() {
+        return System.currentTimeMillis() / 60_000;
     }
 }

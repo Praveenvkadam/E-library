@@ -2,14 +2,16 @@ package com.user.UserProfile.Entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import java.util.Date;
+import java.time.LocalDateTime;
+import java.util.LinkedHashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "profiles")
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
 public class Profile {
 
     @Id
@@ -28,13 +30,33 @@ public class Profile {
     @Column(name = "phone")
     private String phone;
 
-    @Column(name = "book_marked")
-    private int bookMarked;
+    // ✅ Set instead of List — fixes MultipleBagFetchException
+    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<ReadingHistory> readingHistory = new LinkedHashSet<>();
 
-    @Column(name = "read_history", columnDefinition = "TEXT")
-    private String readHistory;
+    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<Bookmark> bookmarks = new LinkedHashSet<>();
 
-    @Column(name = "updated_date")
-    @Temporal(TemporalType.TIMESTAMP)
-    private Date updatedDate;
+    @OneToMany(mappedBy = "profile", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private Set<WishlistItem> wishlist = new LinkedHashSet<>();
+
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

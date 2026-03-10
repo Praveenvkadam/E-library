@@ -1,41 +1,44 @@
 package com.user.UserProfile.Kafka;
 
 import com.user.UserProfile.DTO.ProfileEventDTO;
+import com.user.UserProfile.Service.ProfileService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
+import org.springframework.kafka.support.KafkaHeaders;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Service;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
+@ConditionalOnProperty(name = "spring.kafka.bootstrap-servers")
 public class ProfileEventConsumer {
 
-    @KafkaListener(
-            topics = "${kafka.topic.profile-created}",
-            groupId = "${spring.kafka.consumer.group-id}"
-    )
-    public void consumeProfileCreated(ProfileEventDTO event) {
-        log.info("📥 Profile CREATED event received → userId: [{}] email: [{}] time: [{}]",
-                event.getUserId(), event.getEmail(), event.getEventTime());
-        // e.g. notify MailService, BookUpload, etc.
-    }
+    private final ProfileService profileService;
 
+    // Consumes from Authentication service — auto-creates profile on registration
     @KafkaListener(
-            topics = "${kafka.topic.profile-updated}",
+            topics = "${kafka.topic.user-registered}",
             groupId = "${spring.kafka.consumer.group-id}"
     )
-    public void consumeProfileUpdated(ProfileEventDTO event) {
-        log.info("📥 Profile UPDATED event received → userId: [{}] time: [{}]",
-                event.getUserId(), event.getEventTime());
-        // e.g. sync changes to subscription service
-    }
-
-    @KafkaListener(
-            topics = "${kafka.topic.profile-deleted}",
-            groupId = "${spring.kafka.consumer.group-id}"
-    )
-    public void consumeProfileDeleted(ProfileEventDTO event) {
-        log.info("📥 Profile DELETED event received → userId: [{}] time: [{}]",
-                event.getUserId(), event.getEventTime());
-        // e.g. cancel subscription, clear book history
+    public void consumeUserRegistered(
+            @Payload ProfileEventDTO event,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
+            @Header(KafkaHeaders.OFFSET) long offset,
+            Acknowledgment ack) {
+        try {
+            log.info("📥 USER_REGISTERED received → userId: [{}] partition: [{}] offset: [{}]",
+                    event.getUserId(), partition, offset);
+            profileService.createProfile(event);
+            ack.acknowledge();
+        } catch (Exception ex) {
+            log.error("❌ Failed to process USER_REGISTERED for userId: [{}] → {}",
+                    event.getUserId(), ex.getMessage());
+            // Don't ack → will retry based on consumer config
+        }
     }
 }
