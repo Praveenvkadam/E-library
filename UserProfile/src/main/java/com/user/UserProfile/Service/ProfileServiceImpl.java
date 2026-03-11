@@ -5,11 +5,11 @@ import com.user.UserProfile.Entity.*;
 import com.user.UserProfile.Entity.ReadingHistory.ReadStatus;
 import com.user.UserProfile.Exception.*;
 import com.user.UserProfile.Feign.dto.BookResponce;
+import com.user.UserProfile.Kafka.KafkaEventDispatcher;
 import com.user.UserProfile.Kafka.ProfileEventProducer;
 import com.user.UserProfile.Repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,8 +26,9 @@ public class ProfileServiceImpl implements ProfileService {
     private final ReadingHistoryRepository readingHistoryRepository;
     private final BookmarkRepository       bookmarkRepository;
     private final WishlistRepository       wishlistRepository;
-    private final ProfileEventProducer     eventProducer;
-    private final BookCacheService         bookCacheService;   // ✅ replaces direct Feign call
+    private final KafkaEventDispatcher     kafkaDispatcher;
+    private final BookCacheService         bookCacheService;
+    private final ProfileEventProducer eventProducer;
 
     // ── Create (from Kafka — Authentication service) ──────────────
     @Override
@@ -35,7 +36,7 @@ public class ProfileServiceImpl implements ProfileService {
     public ProfileResponseDTO createProfile(ProfileEventDTO event) {
         if (profileRepository.existsById(event.getUserId())) {
             log.warn("⚠️ Profile already exists → userId: [{}] skipping", event.getUserId());
-            return mapToResponseBatch(event.getUserId());
+            return mapToResponse(event.getUserId());
         }
 
         Profile profile = Profile.builder()
@@ -47,11 +48,13 @@ public class ProfileServiceImpl implements ProfileService {
 
         profileRepository.save(profile);
         log.info("✅ Profile created from Kafka → userId: [{}]", profile.getUserId());
-        sendKafkaEvent(
+
+        // ✅ Fix #1: now truly async — doesn't block HTTP response
+        kafkaDispatcher.dispatch(
                 () -> eventProducer.sendProfileCreated(buildEvent(profile, "PROFILE_CREATED")),
                 "PROFILE_CREATED", profile.getUserId()
         );
-        return mapToResponseBatch(profile.getUserId());
+        return mapToResponse(profile.getUserId());
     }
 
     // ── Create (from REST) ────────────────────────────────────────
@@ -72,19 +75,20 @@ public class ProfileServiceImpl implements ProfileService {
                 .build();
 
         profileRepository.save(profile);
-        log.info("✅ Profile created via REST → userId: [{}]", userId);
-        sendKafkaEvent(
+        log.info(" Profile created via REST → userId: [{}]", userId);
+
+        kafkaDispatcher.dispatch(
                 () -> eventProducer.sendProfileCreated(buildEvent(profile, "PROFILE_CREATED")),
                 "PROFILE_CREATED", userId
         );
-        return mapToResponseBatch(userId);
+        return mapToResponse(userId);
     }
 
     // ── Read ──────────────────────────────────────────────────────
     @Override
     @Transactional(readOnly = true)
     public ProfileResponseDTO getProfileByUserId(String userId) {
-        return mapToResponseBatch(userId);
+        return mapToResponse(userId);
     }
 
     // ── Update ────────────────────────────────────────────────────
@@ -99,11 +103,12 @@ public class ProfileServiceImpl implements ProfileService {
 
         profileRepository.save(profile);
         log.info("✅ Profile updated → userId: [{}]", userId);
-        sendKafkaEvent(
+
+        kafkaDispatcher.dispatch(
                 () -> eventProducer.sendProfileUpdated(buildEvent(profile, "PROFILE_UPDATED")),
                 "PROFILE_UPDATED", userId
         );
-        return mapToResponseBatch(userId);
+        return mapToResponse(userId);
     }
 
     // ── Delete ────────────────────────────────────────────────────
@@ -118,7 +123,8 @@ public class ProfileServiceImpl implements ProfileService {
         profileRepository.delete(profile);
 
         log.info("✅ Profile and all related data deleted → userId: [{}]", userId);
-        sendKafkaEvent(
+
+        kafkaDispatcher.dispatch(
                 () -> eventProducer.sendProfileDeleted(buildEvent(profile, "PROFILE_DELETED")),
                 "PROFILE_DELETED", userId
         );
@@ -142,7 +148,6 @@ public class ProfileServiceImpl implements ProfileService {
         if (dto.getCurrentPage()     != null) entry.setCurrentPage(dto.getCurrentPage());
         if (dto.getTotalPages()      != null) entry.setTotalPages(dto.getTotalPages());
 
-        // Manual status override takes priority — else auto-derive
         if (dto.getStatus() != null) {
             entry.setStatus(dto.getStatus());
         } else if (dto.getProgressPercent() != null && dto.getProgressPercent() >= 100.0) {
@@ -157,9 +162,13 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     @Transactional(readOnly = true)
     public List<ProfileResponseDTO.ReadingHistoryDTO> getReadingHistory(String userId) {
-        Profile profile = findWithHistory(userId);
-        List<Long> ids  = profile.getReadingHistory().stream()
+        Profile profile = profileRepository.findWithReadingHistoryByUserId(userId)
+                .orElseThrow(() -> new ProfileNotFoundException(
+                        "Profile not found for userId: " + userId));
+
+        List<Long> ids = profile.getReadingHistory().stream()
                 .map(rh -> Long.parseLong(rh.getBookId())).toList();
+
         Map<Long, BookResponce> bookMap = bookCacheService.fetchBookMap(ids);
         return profile.getReadingHistory().stream()
                 .map(rh -> toReadingHistoryDTOFromMap(rh, bookMap))
@@ -207,9 +216,13 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     @Transactional(readOnly = true)
     public List<BookmarkResponseDTO> getBookmarks(String userId) {
-        Profile profile = findWithBookmarks(userId);
-        List<Long> ids  = profile.getBookmarks().stream()
+        Profile profile = profileRepository.findWithBookmarksByUserId(userId)
+                .orElseThrow(() -> new ProfileNotFoundException(
+                        "Profile not found for userId: " + userId));
+
+        List<Long> ids = profile.getBookmarks().stream()
                 .map(b -> Long.parseLong(b.getBookId())).toList();
+
         Map<Long, BookResponce> bookMap = bookCacheService.fetchBookMap(ids);
         return profile.getBookmarks().stream()
                 .map(b -> toBookmarkDTOFromMap(b, bookMap))
@@ -254,9 +267,13 @@ public class ProfileServiceImpl implements ProfileService {
     @Override
     @Transactional(readOnly = true)
     public List<WishlistItemDTO> getWishlist(String userId) {
-        Profile profile = findWithWishlist(userId);
-        List<Long> ids  = profile.getWishlist().stream()
+        Profile profile = profileRepository.findWithWishlistByUserId(userId)
+                .orElseThrow(() -> new ProfileNotFoundException(
+                        "Profile not found for userId: " + userId));
+
+        List<Long> ids = profile.getWishlist().stream()
                 .map(w -> Long.parseLong(w.getBookId())).toList();
+
         Map<Long, BookResponce> bookMap = bookCacheService.fetchBookMap(ids);
         return profile.getWishlist().stream()
                 .map(w -> toWishlistDTOFromMap(w, bookMap))
@@ -265,28 +282,8 @@ public class ProfileServiceImpl implements ProfileService {
 
     // ── Private Helpers ───────────────────────────────────────────
 
-    // Write ops — no collections needed
     private Profile findOrThrow(String userId) {
         return profileRepository.findByIdOnly(userId)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found for userId: " + userId));
-    }
-
-    // Targeted fetch helpers — each loads only one collection
-    private Profile findWithHistory(String userId) {
-        return profileRepository.findWithReadingHistoryByUserId(userId)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found for userId: " + userId));
-    }
-
-    private Profile findWithBookmarks(String userId) {
-        return profileRepository.findWithBookmarksByUserId(userId)
-                .orElseThrow(() -> new ProfileNotFoundException(
-                        "Profile not found for userId: " + userId));
-    }
-
-    private Profile findWithWishlist(String userId) {
-        return profileRepository.findWithWishlistByUserId(userId)
                 .orElseThrow(() -> new ProfileNotFoundException(
                         "Profile not found for userId: " + userId));
     }
@@ -302,50 +299,47 @@ public class ProfileServiceImpl implements ProfileService {
                 .build();
     }
 
-    // ✅ Async — Kafka publish never blocks the response thread
-    @Async
-    protected void sendKafkaEvent(Runnable sender, String eventType, String userId) {
-        try {
-            sender.run();
-        } catch (Exception e) {
-            log.warn("⚠️ Kafka event failed [{}] → userId: [{}] reason: {}",
-                    eventType, userId, e.getMessage());
-        }
-    }
+    // ── ✅ Fix #2: single JOIN FETCH query replaces 4 separate DB round-trips ──
+    private ProfileResponseDTO mapToResponse(String userId) {
+        // ONE query fetches profile + all 3 collections via LEFT JOIN FETCH
+        // Add this to ProfileRepository:
+        //
+        //   @Query("""
+        //       SELECT p FROM Profile p
+        //       LEFT JOIN FETCH p.readingHistory
+        //       LEFT JOIN FETCH p.bookmarks
+        //       LEFT JOIN FETCH p.wishlist
+        //       WHERE p.userId = :userId
+        //   """)
+        //   Optional<Profile> findFullProfileByUserId(@Param("userId") String userId);
+        //
+        Profile p = profileRepository.findFullProfileByUserId(userId)
+                .orElseThrow(() -> new ProfileNotFoundException(
+                        "Profile not found for userId: " + userId));
 
-    // ── Batch response mapper — 3 targeted queries + 1 Feign call ─
-    private ProfileResponseDTO mapToResponseBatch(String userId) {
-        Profile base      = findOrThrow(userId);
-        Profile wHistory  = findWithHistory(userId);
-        Profile wBookmark = findWithBookmarks(userId);
-        Profile wWishlist = findWithWishlist(userId);
-
-        // Collect all unique book IDs
+        // Collect all unique book IDs in one pass
         Set<Long> allIds = new HashSet<>();
-        wHistory.getReadingHistory()
-                .forEach(rh -> allIds.add(Long.parseLong(rh.getBookId())));
-        wBookmark.getBookmarks()
-                .forEach(b  -> allIds.add(Long.parseLong(b.getBookId())));
-        wWishlist.getWishlist()
-                .forEach(w  -> allIds.add(Long.parseLong(w.getBookId())));
+        p.getReadingHistory().forEach(rh -> allIds.add(Long.parseLong(rh.getBookId())));
+        p.getBookmarks()     .forEach(b  -> allIds.add(Long.parseLong(b.getBookId())));
+        p.getWishlist()      .forEach(w  -> allIds.add(Long.parseLong(w.getBookId())));
 
-        // ✅ ONE cached batch Feign call
+        // ONE cached batch call to book service
         Map<Long, BookResponce> bookMap = bookCacheService
                 .fetchBookMap(new ArrayList<>(allIds));
 
         return ProfileResponseDTO.builder()
-                .userId(base.getUserId())
-                .firstName(base.getFirstName())
-                .lastName(base.getLastName())
-                .email(base.getEmail())
-                .phone(base.getPhone())
-                .bookmarkCount(wBookmark.getBookmarks().size())
-                .wishlistCount(wWishlist.getWishlist().size())
-                .readingHistory(wHistory.getReadingHistory().stream()
+                .userId(p.getUserId())
+                .firstName(p.getFirstName())
+                .lastName(p.getLastName())
+                .email(p.getEmail())
+                .phone(p.getPhone())
+                .bookmarkCount(p.getBookmarks().size())
+                .wishlistCount(p.getWishlist().size())
+                .readingHistory(p.getReadingHistory().stream()
                         .map(rh -> toReadingHistoryDTOFromMap(rh, bookMap))
                         .collect(Collectors.toList()))
-                .createdAt(base.getCreatedAt())
-                .updatedAt(base.getUpdatedAt())
+                .createdAt(p.getCreatedAt())
+                .updatedAt(p.getUpdatedAt())
                 .build();
     }
 
@@ -374,8 +368,7 @@ public class ProfileServiceImpl implements ProfileService {
                     .category(book.categoryOrDefault())
                     .language(book.languageOrDefault());
         } else {
-            builder.bookId(Long.parseLong(rh.getBookId()))
-                    .name("Unavailable");
+            builder.bookId(Long.parseLong(rh.getBookId())).name("Unavailable");
         }
         return builder.build();
     }

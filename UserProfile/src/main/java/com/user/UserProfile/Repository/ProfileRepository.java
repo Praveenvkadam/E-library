@@ -34,4 +34,9 @@ public interface ProfileRepository extends JpaRepository<Profile, String> {
     @EntityGraph(attributePaths = {"wishlist"})
     @Query("SELECT p FROM Profile p WHERE p.userId = :userId")
     Optional<Profile> findWithWishlistByUserId(@Param("userId") String userId);
+
+    // ✅ Full profile — all 3 collections in one query (used by mapToResponse)
+    @EntityGraph(attributePaths = {"readingHistory", "bookmarks", "wishlist"})
+    @Query("SELECT p FROM Profile p WHERE p.userId = :userId")
+    Optional<Profile> findFullProfileByUserId(@Param("userId") String userId);
 }
