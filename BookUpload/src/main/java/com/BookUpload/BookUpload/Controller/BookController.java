@@ -12,7 +12,9 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -24,6 +26,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @Slf4j
 @RestController
@@ -31,15 +34,22 @@ import java.util.List;
 @Tag(name = "Books", description = "Book management endpoints")
 public class BookController {
 
-    @Autowired private BookService      bookService;
-    @Autowired private RateLimitService rateLimitService;
+    // FIX 4: Constructor injection instead of field injection
+    private final BookService      bookService;
+    private final RateLimitService rateLimitService;
+
+    public BookController(BookService bookService, RateLimitService rateLimitService) {
+        this.bookService      = bookService;
+        this.rateLimitService = rateLimitService;
+    }
 
     // =========================================================================
     // UPLOAD — POST /api/books/upload
+    // FIX 1: Returns 202 Accepted immediately; upload runs async in background
     // =========================================================================
     @Operation(summary = "Upload a new book", description = "Admin only — uploads a book with cover image and PDF file")
     @ApiResponses({
-            @ApiResponse(responseCode = "201", description = "Book uploaded successfully"),
+            @ApiResponse(responseCode = "202", description = "Upload accepted and processing"),
             @ApiResponse(responseCode = "400", description = "Invalid date format"),
             @ApiResponse(responseCode = "403", description = "Access denied — admins only"),
             @ApiResponse(responseCode = "429", description = "Too many requests"),
@@ -47,14 +57,14 @@ public class BookController {
     })
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadBook(
-            @Parameter(description = "Book title")                    @RequestPart("bookName")        String B_name,
-            @Parameter(description = "Book author")                   @RequestPart("bookAuthor")      String B_author,
-            @Parameter(description = "Book description")              @RequestPart("bookDescription") String B_description,
-            @Parameter(description = "Release date (yyyy-MM-dd)")     @RequestPart("releaseDate")     String releaseDate,
-            @Parameter(description = "Book category")                 @RequestPart("bookCategory")    String B_Category,
-            @Parameter(description = "Book language")                 @RequestPart("bookLanguage")    String B_Language,
-            @Parameter(description = "Cover image file")              @RequestPart("imageFile")       MultipartFile imageFile,
-            @Parameter(description = "PDF file")                      @RequestPart("pdfFile")         MultipartFile pdfFile,
+            @Parameter(description = "Book title")                @RequestPart("bookName")        String B_name,
+            @Parameter(description = "Book author")               @RequestPart("bookAuthor")      String B_author,
+            @Parameter(description = "Book description")          @RequestPart("bookDescription") String B_description,
+            @Parameter(description = "Release date (yyyy-MM-dd)") @RequestPart("releaseDate")     String releaseDate,
+            @Parameter(description = "Book category")             @RequestPart("bookCategory")    String B_Category,
+            @Parameter(description = "Book language")             @RequestPart("bookLanguage")    String B_Language,
+            @Parameter(description = "Cover image file")          @RequestPart("imageFile")       MultipartFile imageFile,
+            @Parameter(description = "PDF file")                  @RequestPart("pdfFile")         MultipartFile pdfFile,
 
             @RequestHeader(value = "X-User-Id",    required = false) String userId,
             @RequestHeader(value = "X-User-Email", required = false) String email,
@@ -62,9 +72,12 @@ public class BookController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             HttpServletRequest httpRequest
     ) {
-        Bucket bucket = rateLimitService.resolveAdminBucket(getClientIp(httpRequest));
+        // FIX 5: getClientIp called once and reused
+        String clientIp = getClientIp(httpRequest);
+
+        Bucket bucket = rateLimitService.resolveAdminBucket(clientIp);
         if (!bucket.tryConsume(1)) {
-            log.warn("Rate limit exceeded on /upload by IP: {}", getClientIp(httpRequest));
+            log.warn("Rate limit exceeded on /upload by IP: {}", clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body("Too many requests — please slow down");
         }
@@ -83,8 +96,17 @@ public class BookController {
                     B_name, B_author, B_description,
                     null, null, parsedDate, B_Category, B_Language
             );
-            BookResponce response = bookService.BookUpload(bookRequest, imageFile, pdfFile);
-            return ResponseEntity.status(HttpStatus.CREATED).body(response);
+
+            // FIX 1: Fire-and-forget — thread is no longer blocked by file I/O
+            CompletableFuture<BookResponce> future = bookService.BookUploadAsync(bookRequest, imageFile, pdfFile);
+
+            future.exceptionally(ex -> {
+                log.error("Async upload failed for book '{}': {}", B_name, ex.getMessage());
+                return null;
+            });
+
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body("Upload accepted and is being processed");
 
         } catch (DateTimeParseException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -98,24 +120,33 @@ public class BookController {
 
     // =========================================================================
     // GET ALL — GET /api/books
+    // FIX 2: Paginated response — no longer loads all books into memory at once
     // =========================================================================
-    @Operation(summary = "Get all books", description = "Returns a list of all available books")
+    @Operation(summary = "Get all books", description = "Returns a paginated list of all available books")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Books retrieved successfully"),
             @ApiResponse(responseCode = "429", description = "Too many requests"),
             @ApiResponse(responseCode = "500", description = "Internal server error")
     })
     @GetMapping
-    public ResponseEntity<?> getAllBooks(HttpServletRequest httpRequest) {
-        Bucket bucket = rateLimitService.resolvePublicBucket(getClientIp(httpRequest));
+    public ResponseEntity<?> getAllBooks(
+            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0")  int page,
+            @Parameter(description = "Page size")             @RequestParam(defaultValue = "20") int size,
+            HttpServletRequest httpRequest
+    ) {
+        String clientIp = getClientIp(httpRequest);
+
+        Bucket bucket = rateLimitService.resolvePublicBucket(clientIp);
         if (!bucket.tryConsume(1)) {
-            log.warn("Rate limit exceeded on /getAll by IP: {}", getClientIp(httpRequest));
+            log.warn("Rate limit exceeded on /getAll by IP: {}", clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body("Too many requests — please slow down");
         }
 
         try {
-            return ResponseEntity.ok(bookService.findAll());
+            Pageable pageable = PageRequest.of(page, size);
+            Page<BookResponce> result = bookService.findAll(pageable);
+            return ResponseEntity.ok(result);
         } catch (Exception e) {
             log.error("Failed to fetch books: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
@@ -134,25 +165,30 @@ public class BookController {
     })
     @GetMapping("/search")
     public ResponseEntity<?> searchBooks(
-            @Parameter(description = "Book title")              @RequestParam(required = false) String B_name,
-            @Parameter(description = "Author name")             @RequestParam(required = false) String B_author,
+            @Parameter(description = "Book title")                @RequestParam(required = false) String B_name,
+            @Parameter(description = "Author name")               @RequestParam(required = false) String B_author,
             @Parameter(description = "Release date (yyyy-MM-dd)")
             @RequestParam(required = false)
-            @DateTimeFormat(pattern = "yyyy-MM-dd")             Date releaseDate,
-            @Parameter(description = "Category")                @RequestParam(required = false) String B_Category,
-            @Parameter(description = "Language")                @RequestParam(required = false) String B_Language,
+            @DateTimeFormat(pattern = "yyyy-MM-dd")               Date releaseDate,
+            @Parameter(description = "Category")                  @RequestParam(required = false) String B_Category,
+            @Parameter(description = "Language")                  @RequestParam(required = false) String B_Language,
+            @Parameter(description = "Page number (0-based)")     @RequestParam(defaultValue = "0")  int page,
+            @Parameter(description = "Page size")                 @RequestParam(defaultValue = "20") int size,
             HttpServletRequest httpRequest
     ) {
-        Bucket bucket = rateLimitService.resolvePublicBucket(getClientIp(httpRequest));
+        String clientIp = getClientIp(httpRequest);
+
+        Bucket bucket = rateLimitService.resolvePublicBucket(clientIp);
         if (!bucket.tryConsume(1)) {
-            log.warn("Rate limit exceeded on /search by IP: {}", getClientIp(httpRequest));
+            log.warn("Rate limit exceeded on /search by IP: {}", clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body("Too many requests — please slow down");
         }
 
         try {
+            Pageable pageable = PageRequest.of(page, size);
             return ResponseEntity.ok(
-                    bookService.searchBooks(B_name, B_author, releaseDate, B_Category, B_Language)
+                    bookService.searchBooks(B_name, B_author, releaseDate, B_Category, B_Language, pageable)
             );
         } catch (Exception e) {
             log.error("Search failed: {}", e.getMessage());
@@ -163,10 +199,11 @@ public class BookController {
 
     // =========================================================================
     // UPDATE — PUT /api/books/{id}
+    // FIX 1 (also): async file replacement
     // =========================================================================
     @Operation(summary = "Update a book", description = "Admin only — updates book details and optionally replaces files")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "Book updated successfully"),
+            @ApiResponse(responseCode = "202", description = "Update accepted and processing"),
             @ApiResponse(responseCode = "400", description = "Invalid date format"),
             @ApiResponse(responseCode = "403", description = "Access denied — admins only"),
             @ApiResponse(responseCode = "404", description = "Book not found"),
@@ -189,9 +226,11 @@ public class BookController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             HttpServletRequest httpRequest
     ) {
-        Bucket bucket = rateLimitService.resolveAdminBucket(getClientIp(httpRequest));
+        String clientIp = getClientIp(httpRequest);
+
+        Bucket bucket = rateLimitService.resolveAdminBucket(clientIp);
         if (!bucket.tryConsume(1)) {
-            log.warn("Rate limit exceeded on /update by IP: {}", getClientIp(httpRequest));
+            log.warn("Rate limit exceeded on /update by IP: {}", clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body("Too many requests — please slow down");
         }
@@ -210,8 +249,17 @@ public class BookController {
                     B_name, B_author, B_description,
                     null, null, parsedDate, B_Category, B_Language
             );
-            BookResponce response = bookService.BookUpdate(id, bookRequest, imageFile, pdfFile);
-            return ResponseEntity.ok(response);
+
+            // FIX 1: Async update — no blocking on file I/O
+            CompletableFuture<BookResponce> future = bookService.BookUpdateAsync(id, bookRequest, imageFile, pdfFile);
+
+            future.exceptionally(ex -> {
+                log.error("Async update failed for bookId {}: {}", id, ex.getMessage());
+                return null;
+            });
+
+            return ResponseEntity.status(HttpStatus.ACCEPTED)
+                    .body("Update accepted and is being processed");
 
         } catch (DateTimeParseException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -245,9 +293,11 @@ public class BookController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             HttpServletRequest httpRequest
     ) {
-        Bucket bucket = rateLimitService.resolveAdminBucket(getClientIp(httpRequest));
+        String clientIp = getClientIp(httpRequest);
+
+        Bucket bucket = rateLimitService.resolveAdminBucket(clientIp);
         if (!bucket.tryConsume(1)) {
-            log.warn("Rate limit exceeded on /delete by IP: {}", getClientIp(httpRequest));
+            log.warn("Rate limit exceeded on /delete by IP: {}", clientIp);
             return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
                     .body("Too many requests — please slow down");
         }
@@ -263,7 +313,6 @@ public class BookController {
         try {
             BookResponce response = bookService.BookDelete(id);
             return ResponseEntity.ok(response);
-
         } catch (RuntimeException e) {
             log.error("Book not found: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -283,6 +332,7 @@ public class BookController {
         return java.sql.Date.valueOf(localDate);
     }
 
+    // FIX 5: Called once per request and result is reused — not duplicated per endpoint
     private String getClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
@@ -291,12 +341,9 @@ public class BookController {
         return request.getRemoteAddr();
     }
 
-
     private boolean hasRole(String rolesHeader, String requiredRole) {
         if (rolesHeader == null || rolesHeader.isBlank()) return false;
 
-        // Normalize requiredRole — strip "ROLE_" prefix for comparison
-        // e.g. "ROLE_ADMIN" → "ADMIN"
         String normalizedRequired = requiredRole
                 .replace("ROLE_", "")
                 .trim()
@@ -305,7 +352,7 @@ public class BookController {
         return List.of(rolesHeader.split(","))
                 .stream()
                 .map(String::trim)
-                .map(role -> role.replace("ROLE_", "").toUpperCase()) // normalize incoming: "ROLE_ADMIN" or "ADMIN" → "ADMIN"
+                .map(role -> role.replace("ROLE_", "").toUpperCase())
                 .anyMatch(role -> role.equals(normalizedRequired));
     }
 }

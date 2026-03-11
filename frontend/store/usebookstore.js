@@ -38,8 +38,17 @@ function normalizeBook(raw) {
   };
 }
 
-function normalizeList(list) {
-  if (!Array.isArray(list)) return [];
+function normalizeList(raw) {
+  // Spring Boot may return a plain array or a Page/wrapper object.
+  // Unwrap common shapes: { content: [] }, { books: [] }, { data: [] }
+  let list = raw;
+  if (raw && !Array.isArray(raw)) {
+    list = raw.content ?? raw.books ?? raw.data ?? raw.items ?? [];
+  }
+  if (!Array.isArray(list)) {
+    console.warn("[BookStore] Unexpected API response shape:", raw);
+    return [];
+  }
   return list.map(normalizeBook).filter(Boolean);
 }
 

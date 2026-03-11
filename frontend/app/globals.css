@@ -122,10 +122,11 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-geist-sans), 'Inter', sans-serif;
   }
 }
 
-/* ── Base reset ─────────────────────────────────────────────────────────────── */
+/* ── Base reset ──────────────────────────────────────────────────────────────── */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -135,28 +136,10 @@
 html, body {
   width: 100%;
   min-height: 100vh;
-  font-family: 'Inter', sans-serif;
-  background: #f0f4f8;
-  color: #1e293b;
+ 
 }
 
-/*
-  ✅ FIXED: Removed the old block that zeroed out padding on main/.container.
-  That was causing login/signup/reset-password to lose their centered layout.
 
-  REMOVED (do not re-add):
-  ──────────────────────────
-  #__next, main, .container {
-    max-width: none !important;
-    margin: 0 !important;
-    padding: 0 !important;   ← this was the culprit
-    width: 100% !important;
-  }
-
-  Each page now manages its own layout via inline styles on its root <div>.
-*/
-
-/* Only prevent #__next from constraining width */
 #__next {
   width: 100%;
   min-height: 100vh;

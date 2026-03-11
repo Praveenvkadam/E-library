@@ -30,7 +30,11 @@ export default function Navbar({ activePage, setActivePage }) {
 
   function handleLogout() {
     logout();
-    router.push("/login");
+    // Also clear Zustand persist storage to ensure clean state on reload
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("auth-user");
+    }
+    window.location.href = "/login";
   }
 
   useEffect(() => {
@@ -87,7 +91,10 @@ export default function Navbar({ activePage, setActivePage }) {
 
         {/* ── Logo ── */}
         <div
-          onClick={() => { setActivePage && setActivePage("Home"); setMobileOpen(false); }}
+          onClick={() => {
+            if (setActivePage) { setActivePage("Home"); setMobileOpen(false); }
+            else { router.push("/"); setMobileOpen(false); }
+          }}
           style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", flexShrink: 0 }}
         >
           <div style={{
@@ -103,8 +110,6 @@ export default function Navbar({ activePage, setActivePage }) {
         {/* ── Desktop Nav links ── */}
         <div style={{
           display: "flex", alignItems: "center", gap: 28,
-          // hide on mobile
-          "@media (max-width: 767px)": { display: "none" },
         }} className="desktop-nav">
           <style>{`
             @media (max-width: 767px) { .desktop-nav { display: none !important; } }
@@ -116,7 +121,10 @@ export default function Navbar({ activePage, setActivePage }) {
               key={page}
               label={page}
               active={activePage === page}
-              onClick={() => setActivePage && setActivePage(page)}
+              onClick={() => {
+                if (setActivePage) setActivePage(page);
+                else router.push("/");
+              }}
             />
           ))}
 
@@ -176,7 +184,7 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
         </div>
 
-        {/* ── Desktop Right: search + bell + avatar ── */}
+        {/* ── Desktop Right: search + bell + avatar/signin ── */}
         <div className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: 12 }}>
 
           {/* Search */}
@@ -199,96 +207,142 @@ export default function Navbar({ activePage, setActivePage }) {
             />
           </div>
 
-          <button style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 20 }}>
-            🔔
-          </button>
+          {user && (
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 20 }}>
+              🔔
+            </button>
+          )}
 
-          {/* User avatar */}
-          <div ref={userRef} style={{ position: "relative" }}>
-            <div
-              onClick={() => { setUserOpen((p) => !p); setAdminOpen(false); }}
-              style={{
-                width: 36, height: 36, borderRadius: "50%",
-                background: "linear-gradient(135deg, #0d9488, #0891b2)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer",
-                outline: userOpen ? "2.5px solid #0d9488" : "2.5px solid transparent",
-                outlineOffset: 2, transition: "outline .15s",
-              }}
-            >
-              {getAvatarInitial(user)}
-            </div>
-
-            {userOpen && (
-              <div style={{
-                position: "absolute", top: "calc(100% + 10px)", right: 0,
-                minWidth: 230, background: "#fff", border: "1.5px solid #e2e8f0",
-                borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,.12)",
-                padding: "6px", zIndex: 200, animation: "fadeSlideDownUser .15s ease",
-              }}>
-                <UserDropdownHeader user={user} isAdmin={isAdmin} />
-                <AdminMenuItem
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
-                  label="Profile"
-                  onClick={() => { setActivePage && setActivePage("Profile"); setUserOpen(false); }}
-                />
-                <div style={{ height: 1, background: "#f1f5f9", margin: "4px 6px" }} />
-                <AdminMenuItem
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
-                  label="Logout"
-                  danger
-                  onClick={() => { setUserOpen(false); handleLogout(); }}
-                />
+          {/* Conditional: Sign In or User Avatar */}
+          {user ? (
+            <div ref={userRef} style={{ position: "relative" }}>
+              <div
+                onClick={() => { setUserOpen((p) => !p); setAdminOpen(false); }}
+                style={{
+                  width: 36, height: 36, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #0d9488, #0891b2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "white", fontWeight: 700, fontSize: 14, cursor: "pointer",
+                  outline: userOpen ? "2.5px solid #0d9488" : "2.5px solid transparent",
+                  outlineOffset: 2, transition: "outline .15s",
+                }}
+              >
+                {getAvatarInitial(user)}
               </div>
-            )}
-          </div>
+
+              {userOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 10px)", right: 0,
+                  minWidth: 230, background: "#fff", border: "1.5px solid #e2e8f0",
+                  borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,.12)",
+                  padding: "6px", zIndex: 200, animation: "fadeSlideDownUser .15s ease",
+                }}>
+                  <UserDropdownHeader user={user} isAdmin={isAdmin} />
+                  <AdminMenuItem
+                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+                    label="Profile"
+                    onClick={() => { router.push("/Profile"); setUserOpen(false); }}
+                  />
+                  <div style={{ height: 1, background: "#f1f5f9", margin: "4px 6px" }} />
+                  <AdminMenuItem
+                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
+                    label="Logout"
+                    danger
+                    onClick={() => { setUserOpen(false); handleLogout(); }}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => router.push("/login")}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                padding: "8px 18px",
+                background: "linear-gradient(135deg, #0d9488, #0891b2)",
+                color: "#fff", border: "none", borderRadius: 22,
+                fontSize: 13, fontWeight: 600, cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                boxShadow: "0 2px 8px rgba(13,148,136,.25)",
+                transition: "opacity .15s",
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.opacity = "0.88"}
+              onMouseLeave={(e) => e.currentTarget.style.opacity = "1"}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+                <polyline points="10 17 15 12 10 7"/>
+                <line x1="15" y1="12" x2="3" y2="12"/>
+              </svg>
+              Sign In
+            </button>
+          )}
         </div>
 
-        {/* ── Mobile Right: bell + avatar + hamburger ── */}
+        {/* ── Mobile Right: bell + avatar/signin + hamburger ── */}
         <div className="mobile-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <button style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>
-            🔔
-          </button>
+          {user && (
+            <button style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>
+              🔔
+            </button>
+          )}
 
-          {/* Mobile user avatar */}
-          <div ref={userRef} style={{ position: "relative" }}>
-            <div
-              onClick={() => { setUserOpen((p) => !p); setMobileOpen(false); }}
+          {/* Mobile: Sign In or User Avatar */}
+          {user ? (
+            <div ref={userRef} style={{ position: "relative" }}>
+              <div
+                onClick={() => { setUserOpen((p) => !p); setMobileOpen(false); }}
+                style={{
+                  width: 34, height: 34, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #0d9488, #0891b2)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer",
+                  outline: userOpen ? "2.5px solid #0d9488" : "2.5px solid transparent",
+                  outlineOffset: 2,
+                }}
+              >
+                {getAvatarInitial(user)}
+              </div>
+
+              {userOpen && (
+                <div style={{
+                  position: "absolute", top: "calc(100% + 10px)", right: 0,
+                  minWidth: 220, background: "#fff", border: "1.5px solid #e2e8f0",
+                  borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,.12)",
+                  padding: "6px", zIndex: 300, animation: "fadeSlideDownUser .15s ease",
+                }}>
+                  <UserDropdownHeader user={user} isAdmin={isAdmin} />
+                  <AdminMenuItem
+                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
+                    label="Profile"
+                    onClick={() => { router.push("/Profile"); setUserOpen(false); }}
+                  />
+                  <div style={{ height: 1, background: "#f1f5f9", margin: "4px 6px" }} />
+                  <AdminMenuItem
+                    icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
+                    label="Logout"
+                    danger
+                    onClick={() => { setUserOpen(false); handleLogout(); }}
+                  />
+                </div>
+              )}
+            </div>
+          ) : (
+            <button
+              onClick={() => router.push("/login")}
               style={{
-                width: 34, height: 34, borderRadius: "50%",
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "6px 14px",
                 background: "linear-gradient(135deg, #0d9488, #0891b2)",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "white", fontWeight: 700, fontSize: 13, cursor: "pointer",
-                outline: userOpen ? "2.5px solid #0d9488" : "2.5px solid transparent",
-                outlineOffset: 2,
+                color: "#fff", border: "none", borderRadius: 20,
+                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                boxShadow: "0 2px 8px rgba(13,148,136,.25)",
               }}
             >
-              {getAvatarInitial(user)}
-            </div>
-
-            {userOpen && (
-              <div style={{
-                position: "absolute", top: "calc(100% + 10px)", right: 0,
-                minWidth: 220, background: "#fff", border: "1.5px solid #e2e8f0",
-                borderRadius: 12, boxShadow: "0 12px 32px rgba(0,0,0,.12)",
-                padding: "6px", zIndex: 300, animation: "fadeSlideDownUser .15s ease",
-              }}>
-                <UserDropdownHeader user={user} isAdmin={isAdmin} />
-                <AdminMenuItem
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
-                  label="Profile"
-                  onClick={() => { setActivePage && setActivePage("Profile"); setUserOpen(false); }}
-                />
-                <div style={{ height: 1, background: "#f1f5f9", margin: "4px 6px" }} />
-                <AdminMenuItem
-                  icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
-                  label="Logout"
-                  danger
-                  onClick={() => { setUserOpen(false); handleLogout(); }}
-                />
-              </div>
-            )}
-          </div>
+              Sign In
+            </button>
+          )}
 
           {/* Hamburger */}
           <button
@@ -351,7 +405,10 @@ export default function Navbar({ activePage, setActivePage }) {
               key={page}
               label={page}
               active={activePage === page}
-              onClick={() => { setActivePage && setActivePage(page); setMobileOpen(false); }}
+              onClick={() => {
+                if (setActivePage) { setActivePage(page); setMobileOpen(false); }
+                else { router.push("/"); setMobileOpen(false); }
+              }}
             />
           ))}
 
