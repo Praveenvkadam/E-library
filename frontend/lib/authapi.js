@@ -5,7 +5,6 @@ const api = axios.create({
   headers: { "Content-Type": "application/json" },
 });
 
-// Response interceptor — normalize errors into readable messages
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
@@ -40,11 +39,7 @@ export const authApi = {
   /** POST /api/auth/restpass — { email, newPassword } → string */
   resetPassword: (data) => api.post("/restpass", data),
 
-  /**
-   * POST /api/auth/google — { idToken } → AuthResponse
-   * Backend should verify the Google ID token, create/find the user,
-   * and return a backend JWT.
-   */
+ 
   googleAuth: (idToken) => api.post("/google", { idToken }),
 
   /** GET /api/auth/valid/{token} → boolean */

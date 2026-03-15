@@ -18,36 +18,46 @@ export default function Navbar({ activePage, setActivePage }) {
   const { user, logout } = useAuthStore();
   const isAdmin = user?.role?.toUpperCase().includes("ADMIN") ?? false;
 
-  const [search, setSearch]       = useState("");
-  const [adminOpen, setAdminOpen] = useState(false);
-  const [userOpen, setUserOpen]   = useState(false);
+  const [search, setSearch]         = useState("");
+  const [adminOpen, setAdminOpen]   = useState(false);
+  const [userOpen, setUserOpen]     = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
 
-  const adminRef  = useRef(null);
-  const userRef   = useRef(null);
-  const mobileRef = useRef(null);
+  const adminRef       = useRef(null);
+  const userDesktopRef = useRef(null);
+  const userMobileRef  = useRef(null);
+  const mobileRef      = useRef(null);
 
+  // ✅ FIX: Use router.push instead of window.location.href
+  // window.location.href causes a full-page reload and breaks Next.js routing
   function handleLogout() {
     logout();
-    // Also clear Zustand persist storage to ensure clean state on reload
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("auth-user");
-    }
-    window.location.href = "/login";
+    router.push("/login");
   }
 
   useEffect(() => {
     function handleOutside(e) {
-      if (adminRef.current  && !adminRef.current.contains(e.target))  setAdminOpen(false);
-      if (userRef.current   && !userRef.current.contains(e.target))   setUserOpen(false);
-      if (mobileRef.current && !mobileRef.current.contains(e.target)) setMobileOpen(false);
+      if (adminRef.current && !adminRef.current.contains(e.target))
+        setAdminOpen(false);
+
+      // ✅ FIX: The original code had two separate user ref checks.
+      // On desktop, clicking logout was INSIDE userDesktopRef (correct),
+      // but also NOT inside userMobileRef (hidden but still in DOM),
+      // so setUserOpen(false) fired on mousedown — before the click event —
+      // closing the dropdown and preventing logout/profile from ever triggering.
+      // Fix: only close if the click is outside BOTH refs.
+      const clickedInsideUser =
+        (userDesktopRef.current && userDesktopRef.current.contains(e.target)) ||
+        (userMobileRef.current  && userMobileRef.current.contains(e.target));
+      if (!clickedInsideUser) setUserOpen(false);
+
+      if (mobileRef.current && !mobileRef.current.contains(e.target))
+        setMobileOpen(false);
     }
     document.addEventListener("mousedown", handleOutside);
     return () => document.removeEventListener("mousedown", handleOutside);
   }, []);
 
-  // Close mobile menu on resize to desktop
   useEffect(() => {
     function handleResize() {
       if (window.innerWidth >= 768) setMobileOpen(false);
@@ -108,9 +118,7 @@ export default function Navbar({ activePage, setActivePage }) {
         </div>
 
         {/* ── Desktop Nav links ── */}
-        <div style={{
-          display: "flex", alignItems: "center", gap: 28,
-        }} className="desktop-nav">
+        <div style={{ display: "flex", alignItems: "center", gap: 28 }} className="desktop-nav">
           <style>{`
             @media (max-width: 767px) { .desktop-nav { display: none !important; } }
             @media (min-width: 768px) { .mobile-actions { display: none !important; } }
@@ -128,7 +136,7 @@ export default function Navbar({ activePage, setActivePage }) {
             />
           ))}
 
-          {/* Admin dropdown */}
+          {/* Admin dropdown — only visible to ADMIN role */}
           {isAdmin && (
             <div ref={adminRef} style={{ position: "relative" }}>
               <button
@@ -184,10 +192,8 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
         </div>
 
-        {/* ── Desktop Right: search + bell + avatar/signin ── */}
+        {/* ── Desktop Right ── */}
         <div className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-
-          {/* Search */}
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             background: "#f1f5f9", border: "1.5px solid #e2e8f0",
@@ -213,9 +219,9 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           )}
 
-          {/* Conditional: Sign In or User Avatar */}
           {user ? (
-            <div ref={userRef} style={{ position: "relative" }}>
+            // ✅ Desktop user dropdown wrapped in its own ref
+            <div ref={userDesktopRef} style={{ position: "relative" }}>
               <div
                 onClick={() => { setUserOpen((p) => !p); setAdminOpen(false); }}
                 style={{
@@ -241,6 +247,8 @@ export default function Navbar({ activePage, setActivePage }) {
                   <AdminMenuItem
                     icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
                     label="Profile"
+                    // ✅ FIX: router.push works correctly because Navbar is
+                    // rendered inside (pages)/layout.jsx which has useRouter context
                     onClick={() => { router.push("/Profile"); setUserOpen(false); }}
                   />
                   <div style={{ height: 1, background: "#f1f5f9", margin: "4px 6px" }} />
@@ -248,6 +256,7 @@ export default function Navbar({ activePage, setActivePage }) {
                     icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
                     label="Logout"
                     danger
+                    // ✅ FIX: Now fires correctly because the ref bug is fixed above
                     onClick={() => { setUserOpen(false); handleLogout(); }}
                   />
                 </div>
@@ -279,7 +288,7 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
         </div>
 
-        {/* ── Mobile Right: bell + avatar/signin + hamburger ── */}
+        {/* ── Mobile Right ── */}
         <div className="mobile-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {user && (
             <button style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>
@@ -287,9 +296,9 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           )}
 
-          {/* Mobile: Sign In or User Avatar */}
           {user ? (
-            <div ref={userRef} style={{ position: "relative" }}>
+            // ✅ Mobile user dropdown wrapped in its own separate ref
+            <div ref={userMobileRef} style={{ position: "relative" }}>
               <div
                 onClick={() => { setUserOpen((p) => !p); setMobileOpen(false); }}
                 style={{
@@ -344,7 +353,6 @@ export default function Navbar({ activePage, setActivePage }) {
             </button>
           )}
 
-          {/* Hamburger */}
           <button
             onClick={() => { setMobileOpen((p) => !p); setUserOpen(false); }}
             style={{
@@ -379,7 +387,6 @@ export default function Navbar({ activePage, setActivePage }) {
             fontFamily: "'Inter', sans-serif",
           }}
         >
-          {/* Mobile search */}
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
             background: "#f1f5f9", border: "1.5px solid #e2e8f0",
@@ -399,7 +406,6 @@ export default function Navbar({ activePage, setActivePage }) {
             />
           </div>
 
-          {/* Mobile nav links */}
           {["Home", "Catalog", "My Books", "About"].map((page) => (
             <MobileNavItem
               key={page}
@@ -412,7 +418,6 @@ export default function Navbar({ activePage, setActivePage }) {
             />
           ))}
 
-          {/* Admin section in mobile menu */}
           {isAdmin && (
             <>
               <div style={{
@@ -420,7 +425,6 @@ export default function Navbar({ activePage, setActivePage }) {
                 textTransform: "uppercase", letterSpacing: ".08em",
                 padding: "12px 4px 6px",
               }}>Admin Panel</div>
-
               <MobileNavItem
                 label="Dashboard"
                 icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>}
@@ -441,7 +445,6 @@ export default function Navbar({ activePage, setActivePage }) {
   );
 }
 
-/* ── UserDropdownHeader ────────────────────────────────────────────────────── */
 function UserDropdownHeader({ user, isAdmin }) {
   return (
     <div style={{ padding: "10px 12px 12px", borderBottom: "1px solid #f1f5f9", marginBottom: 4 }}>
@@ -484,7 +487,6 @@ function UserDropdownHeader({ user, isAdmin }) {
   );
 }
 
-/* ── MobileNavItem ─────────────────────────────────────────────────────────── */
 function MobileNavItem({ label, active, onClick, icon }) {
   return (
     <button
@@ -515,7 +517,6 @@ function MobileNavItem({ label, active, onClick, icon }) {
   );
 }
 
-/* ── NavLink ───────────────────────────────────────────────────────────────── */
 function NavLink({ label, active, onClick }) {
   const [hovered, setHovered] = useState(false);
   return (
@@ -536,7 +537,6 @@ function NavLink({ label, active, onClick }) {
   );
 }
 
-/* ── AdminMenuItem ─────────────────────────────────────────────────────────── */
 function AdminMenuItem({ icon, label, onClick, danger = false, active = false }) {
   const [hovered, setHovered] = useState(false);
   const activeColor   = danger ? "#ef4444" : "#0d9488";

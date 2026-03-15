@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { authApi } from "@/lib/authapi";
 
+// ✅ _token lives outside the store so it's never serialized to localStorage
+// and is always up-to-date in memory across the session.
 let _token = null;
 
 export function getToken() {
@@ -127,17 +129,33 @@ const useAuthStore = create(
 
       // ─── Logout ──────────────────────────────────────────────
       logout: () => {
+        // ✅ Clear the in-memory token
         _token = null;
+
         if (typeof window !== "undefined") {
+          // ✅ Clear the JWT from localStorage
           localStorage.removeItem("auth-token");
+
+          // ❌ REMOVED: localStorage.removeItem("auth-user")
+          // Manually removing "auth-user" caused a race condition —
+          // Zustand's persist middleware re-writes it immediately after.
+          // set({ user: null }) below is enough; Zustand persist will
+          // automatically sync the cleared user state to localStorage.
         }
+
+        // ✅ Clear user from store — Zustand persist handles localStorage sync
         set({ user: null, error: null });
       },
     }),
     {
-      name: "auth-user",
+      name: "auth-user", // localStorage key for persisted state
       storage: createJSONStorage(() => localStorage),
+
+      // ✅ Only persist the user object, not loading/error state
       partialize: (state) => ({ user: state.user }),
+
+      // ✅ On page reload, rehydrate _token from localStorage
+      // so isAuthenticated() returns true for returning users
       onRehydrateStorage: () => (state) => {
         if (state && typeof window !== "undefined") {
           _token = localStorage.getItem("auth-token");
