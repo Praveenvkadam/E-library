@@ -5,6 +5,7 @@ import { useSearchParams }  from "next/navigation";
 import { toast }            from "sonner";
 import { Loader2 }          from "lucide-react";
 import useAuthStore         from "@/store/authstore";
+import useBookStore         from "@/store/usebookstore";
 import HeroBanner           from "@/components/HeroBanner";
 import CategoryFilter       from "@/components/Categoryfilter";
 import FeaturedBooks        from "@/components/Featuredbooks";
@@ -28,8 +29,12 @@ const BASE_STYLES = `
 export default function HomePage() {
   const searchParams                        = useSearchParams();
   const { loginWithGoogle }                 = useAuthStore();
+  const { loadAll }                         = useBookStore();  // ✅ added
   const [activeCategory, setActiveCategory] = useState("Fiction");
   const [processing, setProcessing]         = useState(false);
+
+  // ✅ Fetch books ONCE here — children just read from store
+  useEffect(() => { loadAll(); }, []);
 
   // ── Handle ?token= from Spring Boot Google OAuth redirect ─────────────────
   useEffect(() => {
@@ -50,9 +55,8 @@ export default function HomePage() {
 
     setProcessing(true);
     try {
-    
       const payload = JSON.parse(atob(token.split(".")[1]));
-      console.log("[OAuth] JWT payload →", payload); // remove after confirming
+      console.log("[OAuth] JWT payload →", payload);
 
       const rawRole =
         payload.role ||
@@ -90,7 +94,6 @@ export default function HomePage() {
     alert(`You borrowed: ${book.title}`);
   };
 
-  // ── Spinner while processing OAuth token ──────────────────────────────────
   if (processing) {
     return (
       <div style={{
@@ -105,13 +108,10 @@ export default function HomePage() {
     );
   }
 
-
-  // ── Default Home layout ───────────────────────────────────────────────────
   return (
     <>
       <style>{BASE_STYLES}</style>
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", width: "100%" }}>
-        
         <main className="main-content">
           <HeroBanner />
           <CategoryFilter active={activeCategory} onChange={setActiveCategory} />

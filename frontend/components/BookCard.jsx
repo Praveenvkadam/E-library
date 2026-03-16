@@ -1,38 +1,81 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import useBookStore from "@/store/usebookstore";
 
+const COVER_PAIRS = [
+  { bg: "#0f172a", cover: "#1e3a5f" },
+  { bg: "#1a0a2e", cover: "#4a1d6e" },
+  { bg: "#0d2b1a", cover: "#145a32" },
+  { bg: "#2d1200", cover: "#7c3500" },
+  { bg: "#1a1a2e", cover: "#16213e" },
+  { bg: "#2c0a0a", cover: "#7b1212" },
+];
+
+// ─── BookThumb ────────────────────────────────────────────────────────────────
 function BookThumb({ book }) {
   return (
-    <svg
-      viewBox="0 0 120 160"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ width: "100%", height: "100%", display: "block" }}
-    >
-      <rect width="120" height="160" rx="4" fill={book.bg} />
-      <rect x="0" y="0" width="10" height="160" rx="2" fill="rgba(0,0,0,.25)" />
-      <rect x="10" y="0" width="110" height="160" rx="2" fill={book.cover} />
-      <text x="60" y="72" textAnchor="middle" fill="rgba(255,255,255,.9)"
-        fontSize="8" fontWeight="bold" fontFamily="Georgia,serif">
-        {book.title.split(" ").slice(0, 2).join(" ")}
-      </text>
-      <text x="60" y="85" textAnchor="middle" fill="rgba(255,255,255,.7)"
-        fontSize="7" fontFamily="Georgia,serif">
-        {book.title.split(" ").slice(2).join(" ")}
-      </text>
-      <line x1="20" y1="128" x2="100" y2="128" stroke="rgba(255,255,255,.15)" strokeWidth=".5" />
-      <text x="60" y="143" textAnchor="middle" fill="rgba(255,255,255,.5)"
-        fontSize="5.5" fontFamily="sans-serif">
-        {book.author}
-      </text>
-      <rect x="10" y="0" width="16" height="160" fill="white" opacity=".04" />
-    </svg>
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
+
+      {/* Book shape */}
+      <div style={{
+        position: "absolute", inset: "12px 20px 12px 16px",
+        borderRadius: "2px 6px 6px 2px",
+        overflow: "hidden",
+        boxShadow: "-4px 4px 12px rgba(0,0,0,.35), inset -3px 0 8px rgba(0,0,0,.2)",
+        display: "flex",
+      }}>
+
+        {/* Spine */}
+        <div style={{
+          width: 14,
+          flexShrink: 0,
+          background: "rgba(0,0,0,.35)",
+        }} />
+
+        {/* Cover */}
+        <div style={{ flex: 1, position: "relative", overflow: "hidden" }}>
+          {book.imageUrl ? (
+            <img
+              src={book.imageUrl}
+              alt={book.title}
+              style={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          ) : (
+            <div style={{ width: "100%", height: "100%", background: book.cover }} />
+          )}
+
+          {/* Glare */}
+          <div style={{
+            position: "absolute", top: 0, left: 0,
+            width: 18, height: "100%",
+            background: "linear-gradient(to right, rgba(255,255,255,.18), transparent)",
+            pointerEvents: "none",
+          }} />
+        </div>
+      </div>
+
+      {/* Page stack */}
+      <div style={{
+        position: "absolute",
+        top: "14px", right: "18px", bottom: "14px",
+        width: 5,
+        background: "linear-gradient(to right, #e2e8f0, #f8fafc)",
+        borderRadius: "0 3px 3px 0",
+        boxShadow: "2px 0 4px rgba(0,0,0,.1)",
+      }} />
+    </div>
   );
 }
 
-export default function BookCard({ book, onBorrow }) {
-  const [hovered, setHovered]       = useState(false);
+// ─── Single BookCard ──────────────────────────────────────────────────────────
+export function BookCard({ book, onBorrow }) {
+  const [hovered,    setHovered]    = useState(false);
   const [btnHovered, setBtnHovered] = useState(false);
 
   return (
@@ -51,13 +94,12 @@ export default function BookCard({ book, onBorrow }) {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-  
-      <div style={{ position: "relative", height: 200 }}>
+      {/* Thumbnail */}
+      <div style={{ position: "relative", height: 220, background: "#f1f5f9" }}>
         <BookThumb book={book} />
-
       </div>
 
-   
+      {/* Info */}
       <div style={{ padding: "14px 16px 16px" }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: "#0d9488", letterSpacing: "1px", marginBottom: 4 }}>
           {book.genre}
@@ -69,7 +111,6 @@ export default function BookCard({ book, onBorrow }) {
           {book.author}
         </div>
 
-       
         <button
           onMouseEnter={() => setBtnHovered(true)}
           onMouseLeave={() => setBtnHovered(false)}
@@ -102,5 +143,121 @@ export default function BookCard({ book, onBorrow }) {
         </button>
       </div>
     </div>
+  );
+}
+
+// ─── PDF Modal ────────────────────────────────────────────────────────────────
+function PdfModal({ book, onClose }) {
+  if (!book) return null;
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, zIndex: 100,
+        background: "rgba(0,0,0,.65)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: "#fff", borderRadius: 16,
+          width: "min(90vw, 900px)", height: "85vh",
+          display: "flex", flexDirection: "column",
+          overflow: "hidden", boxShadow: "0 24px 60px rgba(0,0,0,.3)",
+        }}
+      >
+        <div style={{
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 20px", borderBottom: "1px solid #f1f5f9",
+        }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: "#1e293b", fontFamily: "'Inter',sans-serif" }}>
+              {book.title}
+            </div>
+            <div style={{ fontSize: 12, color: "#64748b", fontFamily: "'Inter',sans-serif" }}>
+              {book.author}
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            style={{
+              background: "#f1f5f9", border: "none", borderRadius: 8,
+              padding: "6px 14px", cursor: "pointer",
+              fontSize: 13, color: "#475569", fontFamily: "'Inter',sans-serif",
+            }}
+          >
+            Close
+          </button>
+        </div>
+
+        {book.pdfUrl ? (
+          <iframe src={book.pdfUrl} title={book.title} style={{ flex: 1, border: "none" }} />
+        ) : (
+          <div style={{
+            flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#94a3b8", fontSize: 15, fontFamily: "'Inter',sans-serif",
+          }}>
+            No PDF available for this book.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Default export ───────────────────────────────────────────────────────────
+export default function BookCards() {
+  const { books, isLoadingList, error, loadAll } = useBookStore();
+  const [activeBook, setActiveBook] = useState(null);
+
+
+
+  const cardBooks = books.map((b, i) => ({
+    id:       b.b_id,
+    title:    b.b_name     || "Untitled",
+    author:   b.b_author   || "Unknown",
+    genre:    b.b_category || "General",
+    pdfUrl:   b.b_pdfUrl,
+    imageUrl: b.b_imageUrl,
+    ...COVER_PAIRS[i % COVER_PAIRS.length],
+  }));
+
+  if (isLoadingList) return (
+    <div style={{ textAlign: "center", padding: "80px 0", color: "#94a3b8", fontFamily: "'Inter',sans-serif" }}>
+      Loading books…
+    </div>
+  );
+
+  if (error) return (
+    <div style={{ textAlign: "center", padding: "80px 0", color: "#e11d48", fontFamily: "'Inter',sans-serif" }}>
+      {error}
+    </div>
+  );
+
+  if (cardBooks.length === 0) return (
+    <div style={{ textAlign: "center", padding: "80px 0", color: "#94a3b8", fontFamily: "'Inter',sans-serif" }}>
+      No books found.
+    </div>
+  );
+
+  return (
+    <>
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(190px, 1fr))",
+        gap: 24,
+      }}>
+        {cardBooks.map((book) => (
+          <BookCard
+            key={book.id}
+            book={book}
+            onBorrow={() => setActiveBook(book)}
+          />
+        ))}
+      </div>
+
+      <PdfModal book={activeBook} onClose={() => setActiveBook(null)} />
+    </>
   );
 }
