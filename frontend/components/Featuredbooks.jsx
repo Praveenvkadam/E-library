@@ -13,12 +13,19 @@ const COVER_PAIRS = [
   { bg: "#2d1200", cover: "#7c3500" },
 ];
 
-export default function FeaturedBooks({ onBorrow }) {
+export default function FeaturedBooks({ activeCategory, onBorrow }) {
   const { books, isLoadingList, error, loadAll } = useBookStore();
 
+  // Filter books by the active category (case-insensitive), "ALL" shows everything
+  const filtered =
+    !activeCategory || activeCategory.toUpperCase() === "ALL"
+      ? books
+      : books.filter(
+          (b) =>
+            (b.b_category || "").toLowerCase() === activeCategory.toLowerCase()
+        );
 
-
-  const cardBooks = books.map((b, i) => ({
+  const cardBooks = filtered.map((b, i) => ({
     id:       b.b_id,
     title:    b.b_name     || "Untitled",
     author:   b.b_author   || "Unknown",

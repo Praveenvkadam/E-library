@@ -6,7 +6,7 @@ const CATEGORIES = [  "ALL","Fiction", "Non-Fiction", "Science", "Technology", "
   "Biography"];
 
 export default function CategoryFilter({ active: externalActive, onChange }) {
-  const [internalActive, setInternalActive] = useState("Fiction");
+  const [internalActive, setInternalActive] = useState("ALL");
   const active = externalActive !== undefined ? externalActive : internalActive;
 
   const handleClick = (cat) => {

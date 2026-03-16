@@ -29,8 +29,8 @@ const BASE_STYLES = `
 export default function HomePage() {
   const searchParams                        = useSearchParams();
   const { loginWithGoogle }                 = useAuthStore();
-  const { loadAll }                         = useBookStore();  // ✅ added
-  const [activeCategory, setActiveCategory] = useState("Fiction");
+  const { loadAll }                         = useBookStore();  
+  const [activeCategory, setActiveCategory] = useState("ALL");
   const [processing, setProcessing]         = useState(false);
 
   // ✅ Fetch books ONCE here — children just read from store
@@ -115,7 +115,7 @@ export default function HomePage() {
         <main className="main-content">
           <HeroBanner />
           <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
-          <FeaturedBooks onBorrow={handleBorrow} />
+          <FeaturedBooks activeCategory={activeCategory} onBorrow={handleBorrow} />
           <ContactSection />
         </main>
         <Footer />
