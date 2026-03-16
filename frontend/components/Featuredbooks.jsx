@@ -43,7 +43,6 @@ const DEFAULT_BOOKS = [
   },
 ];
 
-// ── FeaturedBooks ─────────────────────────────────────────────────────────────
 export default function FeaturedBooks({ books = DEFAULT_BOOKS, onBorrow }) {
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>

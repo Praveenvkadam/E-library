@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 
-const CATEGORIES = ["Fiction", "Non-Fiction", "Science", "Technology", "History", "Biography", "Kids"];
+const CATEGORIES = [  "ALL","Fiction", "Non-Fiction", "Science", "Technology", "kids",
+  "Biography"];
 
 export default function CategoryFilter({ active: externalActive, onChange }) {
   const [internalActive, setInternalActive] = useState("Fiction");

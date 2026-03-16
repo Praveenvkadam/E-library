@@ -7,8 +7,8 @@ const STATUS_COLOR  = { LIVE: "#16a34a" };
 const STATUS_DOT_BG = { LIVE: "#22c55e" };
 
 const CATEGORIES = [
-  "Fiction", "Non-Fiction", "Science", "Technology", "History",
-  "Biography", "Self-Help", "Philosophy", "Art", "Education",
+  "ALL","Fiction", "Non-Fiction", "Science", "Technology", "kids",
+  "Biography",
 ];
 
 const LANGUAGES = [
@@ -25,9 +25,6 @@ const LANGUAGES = [
 const SPINE_COLORS = ["#134e4a", "#022c22", "#065f46", "#1e40af", "#7c3aed", "#991b1b"];
 const BG_COLORS    = ["#fefce8", "#f0fdfa", "#ecfdf5", "#eff6ff", "#f5f3ff", "#fff1f2"];
 
-// ---------------------------------------------------------------------------
-// BookThumb
-// ---------------------------------------------------------------------------
 
 function BookThumb({ book, index = 0, size = 44 }) {
   if (book.b_imageUrl) {
@@ -91,9 +88,6 @@ function Toast({ message, type, onClose }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Modal wrapper
-// ---------------------------------------------------------------------------
 
 function Modal({ onClose, children, width = 520 }) {
   useEffect(() => {
@@ -127,9 +121,6 @@ function Modal({ onClose, children, width = 520 }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Preview Modal
-// ---------------------------------------------------------------------------
 
 function PreviewModal({ book, onClose }) {
   return (

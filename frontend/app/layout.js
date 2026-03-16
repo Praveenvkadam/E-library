@@ -12,7 +12,7 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <Toaster
-          position="top-right"
+          position="top-middle"
           richColors
           closeButton
           toastOptions={{ duration: 4000 }}

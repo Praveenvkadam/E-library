@@ -1,6 +1,5 @@
 "use client";
 
-// ── BookCard.jsx ──────────────────────────────────────────────────────────────
 import { useState } from "react";
 
 function BookThumb({ book }) {
@@ -52,24 +51,13 @@ export default function BookCard({ book, onBorrow }) {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      {/* Cover */}
+  
       <div style={{ position: "relative", height: 200 }}>
         <BookThumb book={book} />
-        {book.badge && (
-          <div style={{
-            position: "absolute", top: 10, left: 10,
-            background: book.badgeColor ?? "#f97316",
-            color: "white",
-            fontSize: 10, fontWeight: 700,
-            padding: "3px 8px", borderRadius: 4,
-            letterSpacing: ".5px",
-          }}>
-            {book.badge}
-          </div>
-        )}
+
       </div>
 
-      {/* Info */}
+   
       <div style={{ padding: "14px 16px 16px" }}>
         <div style={{ fontSize: 10, fontWeight: 700, color: "#0d9488", letterSpacing: "1px", marginBottom: 4 }}>
           {book.genre}
@@ -81,7 +69,7 @@ export default function BookCard({ book, onBorrow }) {
           {book.author}
         </div>
 
-        {/* Borrow button */}
+       
         <button
           onMouseEnter={() => setBtnHovered(true)}
           onMouseLeave={() => setBtnHovered(false)}
@@ -110,7 +98,7 @@ export default function BookCard({ book, onBorrow }) {
             <rect x="3" y="3" width="18" height="18" rx="2" />
             <line x1="9" y1="3" x2="9" y2="21" />
           </svg>
-          Borrow
+          READ
         </button>
       </div>
     </div>

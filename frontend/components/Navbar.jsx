@@ -192,7 +192,6 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
         </div>
 
-        {/* ── Desktop Right ── */}
         <div className="desktop-nav" style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
@@ -220,7 +219,7 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
 
           {user ? (
-            // ✅ Desktop user dropdown wrapped in its own ref
+            
             <div ref={userDesktopRef} style={{ position: "relative" }}>
               <div
                 onClick={() => { setUserOpen((p) => !p); setAdminOpen(false); }}
@@ -247,8 +246,6 @@ export default function Navbar({ activePage, setActivePage }) {
                   <AdminMenuItem
                     icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>}
                     label="Profile"
-                    // ✅ FIX: router.push works correctly because Navbar is
-                    // rendered inside (pages)/layout.jsx which has useRouter context
                     onClick={() => { router.push("/Profile"); setUserOpen(false); }}
                   />
                   <div style={{ height: 1, background: "#f1f5f9", margin: "4px 6px" }} />
@@ -256,7 +253,7 @@ export default function Navbar({ activePage, setActivePage }) {
                     icon={<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>}
                     label="Logout"
                     danger
-                    // ✅ FIX: Now fires correctly because the ref bug is fixed above
+                    
                     onClick={() => { setUserOpen(false); handleLogout(); }}
                   />
                 </div>
@@ -288,7 +285,7 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
         </div>
 
-        {/* ── Mobile Right ── */}
+     
         <div className="mobile-actions" style={{ display: "flex", alignItems: "center", gap: 10 }}>
           {user && (
             <button style={{ background: "none", border: "none", cursor: "pointer", color: "#64748b", fontSize: 18 }}>
@@ -297,7 +294,6 @@ export default function Navbar({ activePage, setActivePage }) {
           )}
 
           {user ? (
-            // ✅ Mobile user dropdown wrapped in its own separate ref
             <div ref={userMobileRef} style={{ position: "relative" }}>
               <div
                 onClick={() => { setUserOpen((p) => !p); setMobileOpen(false); }}
