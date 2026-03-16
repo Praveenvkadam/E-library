@@ -111,7 +111,7 @@
   --sidebar-primary: oklch(0.488 0.243 264.376);
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
 }
@@ -126,19 +126,13 @@
   }
 }
 
-/* ── Base reset ──────────────────────────────────────────────────────────────── */
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
+/* ── Global layout ───────────────────────────────────────────────────────────── */
 html, body {
   width: 100%;
   min-height: 100vh;
- 
+  overflow-x: hidden; /* prevent horizontal scroll on all screen sizes */
+  margin-inline: auto; /* center content and remove side gaps */
 }
-
 
 #__next {
   width: 100%;

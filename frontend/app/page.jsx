@@ -1,10 +1,5 @@
-"use client"
-import Home from "./(pages)/Home/page";
+import { redirect } from "next/navigation";
 
 export default function MainPage() {
-  return (
-    <div>
-      <Home />
-    </div>
-  );
+  redirect("/Home");
 }

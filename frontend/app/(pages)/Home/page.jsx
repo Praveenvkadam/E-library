@@ -5,7 +5,6 @@ import { useSearchParams }  from "next/navigation";
 import { toast }            from "sonner";
 import { Loader2 }          from "lucide-react";
 import useAuthStore         from "@/store/authstore";
-import Navbar               from "@/components/Navbar";
 import HeroBanner           from "@/components/HeroBanner";
 import CategoryFilter       from "@/components/Categoryfilter";
 import FeaturedBooks        from "@/components/Featuredbooks";
@@ -29,7 +28,6 @@ const BASE_STYLES = `
 export default function HomePage() {
   const searchParams                        = useSearchParams();
   const { loginWithGoogle }                 = useAuthStore();
-  const [activePage, setActivePage]         = useState("Home");
   const [activeCategory, setActiveCategory] = useState("Fiction");
   const [processing, setProcessing]         = useState(false);
 
@@ -52,7 +50,7 @@ export default function HomePage() {
 
     setProcessing(true);
     try {
-      // ✅ Decode JWT directly
+    
       const payload = JSON.parse(atob(token.split(".")[1]));
       console.log("[OAuth] JWT payload →", payload); // remove after confirming
 
@@ -107,28 +105,13 @@ export default function HomePage() {
     );
   }
 
-  // ── Upload page ───────────────────────────────────────────────────────────
-  if (activePage === "Uploadsection") {
-    return (
-      <>
-        <style>{BASE_STYLES}</style>
-        <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", width: "100%" }}>
-          <Navbar activePage={activePage} setActivePage={setActivePage} />
-          <main className="main-content">
-            <UploadSection setActivePage={setActivePage} />
-          </main>
-          <Footer />
-        </div>
-      </>
-    );
-  }
 
   // ── Default Home layout ───────────────────────────────────────────────────
   return (
     <>
       <style>{BASE_STYLES}</style>
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", width: "100%" }}>
-        <Navbar activePage={activePage} setActivePage={setActivePage} />
+        
         <main className="main-content">
           <HeroBanner />
           <CategoryFilter active={activeCategory} onChange={setActiveCategory} />
