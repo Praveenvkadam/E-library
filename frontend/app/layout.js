@@ -1,5 +1,6 @@
-import { Toaster } from "sonner";
+import { GoeyToaster } from "@/components/ui/goey-toaster";
 import "./globals.css";
+
 
 export const metadata = {
   title: "Smart E-library",
@@ -11,12 +12,8 @@ export default function RootLayout({ children }) {
     <html lang="en" suppressHydrationWarning>
       <body>
         {children}
-        <Toaster
-          position="top-middle"
-          richColors
-          closeButton
-          toastOptions={{ duration: 4000 }}
-        />
+       <GoeyToaster />
+        
       </body>
     </html>
   );
