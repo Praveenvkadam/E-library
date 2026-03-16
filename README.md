@@ -1,108 +1,221 @@
-# E-Library
+<p align="center">
+  <h1 align="center">📚 E-Library</h1>
+  <p align="center">
+    A cloud-native digital library platform built with microservices architecture, featuring AI-powered book analysis, Razorpay subscription payments, and a modern Next.js frontend.
+  </p>
+</p>
 
-A comprehensive microservices-based digital library platform built with Java, featuring AI-powered services, secure authentication, and subscription-based access to digital books.
+<p align="center">
+  <img src="https://img.shields.io/badge/Java-17-ED8B00?style=for-the-badge&logo=openjdk&logoColor=white" alt="Java 17"/>
+  <img src="https://img.shields.io/badge/Spring%20Boot-3.2+-6DB33F?style=for-the-badge&logo=springboot&logoColor=white" alt="Spring Boot"/>
+  <img src="https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js 16"/>
+  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React 19"/>
+  <img src="https://img.shields.io/badge/Node.js-Express-339933?style=for-the-badge&logo=nodedotjs&logoColor=white" alt="Node.js"/>
+</p>
+
+---
 
 ## 📋 Table of Contents
 
-- [Overview](#overview)
-- [Features](#features)
-- [Project Architecture](#project-architecture)
-- [Technology Stack](#technology-stack)
-- [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
-- [Installation](#installation)
-- [Configuration](#configuration)
-- [API Documentation](#api-documentation)
-- [Contributing](#contributing)
-- [License](#license)
+- [Overview](#-overview)
+- [Features](#-features)
+- [Architecture](#-architecture)
+- [Technology Stack](#-technology-stack)
+- [Project Structure](#-project-structure)
+- [Getting Started](#-getting-started)
+- [Configuration](#%EF%B8%8F-configuration)
+- [API Reference](#-api-reference)
+- [Contributing](#-contributing)
+- [License](#-license)
 
 ## 🎯 Overview
 
-E-Library is a full-stack digital library platform designed to provide users with seamless access to digital books through a microservices architecture. The platform combines modern web technologies with cloud-native patterns to ensure scalability, reliability, and security.
+E-Library is a full-stack digital library platform that enables users to discover, read, and manage digital books through a scalable microservices architecture. The platform combines **Spring Boot** backend services with a **Next.js** frontend and an **AI-powered** analysis engine to deliver intelligent book summaries, text-to-speech, and content analysis.
+
+Key highlights:
+- **8 independently deployable microservices** communicating via Kafka and REST
+- **AI-powered features** using LangChain + Gemini/Sarvam for book analysis, summaries, and TTS
+- **Razorpay integration** for subscription-based payment processing
+- **Cloudinary** for book cover/file storage
+- **OAuth2 + JWT** for secure authentication with rate limiting
 
 ## ✨ Features
 
-- **User Authentication**: Secure authentication system with JWT-based authorization
-- **Book Upload & Management**: Easy book upload and catalog management
-- **AI-Powered Services**: Machine learning integration for recommendations and content analysis
-- **Subscription Management**: Flexible subscription and payment processing
-- **User Profiles**: Comprehensive user profile and preference management
-- **Mail Service**: Email notifications and user communications
-- **API Gateway**: Centralized API management and routing
-- **Service Discovery**: Eureka-based service discovery for microservices
-- **Responsive Frontend**: Modern, responsive user interface
+### 📖 Core Features
+- **Book Catalog & Upload** — Upload, browse, search, and filter books by category
+- **Book Reader** — In-app reading experience with reading history tracking
+- **User Profiles** — Comprehensive user profile management with preferences
 
-## 🏗️ Project Architecture
+### 🤖 AI-Powered Features
+- **Book Summarization** — AI-generated summaries using LangChain & Gemini
+- **Content Analysis** — Intelligent book content analysis
+- **Text-to-Speech** — AI-powered TTS using Sarvam API for audio playback
 
-This project follows a **microservices architecture** pattern with the following components:
+### 💳 Payments & Subscriptions
+- **Razorpay Integration** — Secure payment processing with order creation & webhook verification
+- **Subscription Plans** — Flexible subscription tiers with automatic management
+
+### 🔐 Security & Infrastructure
+- **JWT Authentication** with OAuth2 (Google) social login
+- **Rate Limiting** via Bucket4j across all services
+- **Circuit Breaker** pattern with Resilience4j for fault tolerance
+- **Service Discovery** with Netflix Eureka
+- **Event-Driven Architecture** with Apache Kafka for inter-service communication
+- **Centralized API Gateway** with Spring Cloud Gateway & Redis caching
+- **Email Notifications** via Kafka-driven mail service
+
+## 🏗️ Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Frontend (Next JS)                      │
-└────────────────────┬────────────────────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────────────────────┐
-│                      API Gateway                                 │
-│                  (Central Entry Point)                           │
-└────────────────────┬────────────────────────────────────────────┘
-                     │
-         ┌───────────┼───────────┬───────────┬───────────┐
-         │           │           │           │           │
-    ┌────▼──┐  ┌────▼──┐  ┌────▼──┐  ┌────▼──┐  ┌────▼──┐
-    │  Auth │  │ Books │  │  User │  │Payment│  │  AI   │
-    │Service│  │Service│  │Profile│  │Service│  │Service│
-    └───────┘  └───────┘  └───────┘  └───────┘  └───────┘
-         │           │           │           │           │
-    ┌────▼─────────────────────────────────────────────┐
-    │           Service Discovery (Eureka)             │
-    └────────────────────────────────────────────────┘
-         │
-    ┌────▼─────────────────────────────────────────────┐
-    │        Mail Service (Notifications)              │
-    └──────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                     Frontend (Next.js 16 / React 19)                │
+│            Tailwind CSS 4 · shadcn/ui · Framer Motion               │
+└────────────────────────────┬─────────────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────────────┐
+│                    API Gateway (Spring Cloud Gateway)                │
+│              WebFlux · Resilience4j · Redis · JWT Filter             │
+└───┬──────────┬──────────┬──────────┬──────────┬──────────┬──────────┘
+    │          │          │          │          │          │
+┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼───┐ ┌───▼────────┐
+│ Auth  │ │ Book  │ │ User  │ │ Sub.  │ │ Mail  │ │     AI     │
+│Service│ │Upload │ │Profile│ │Payment│ │Service│ │   Service  │
+│       │ │       │ │       │ │       │ │       │ │            │
+│MySQL  │ │Postgre│ │MySQL  │ │Postgre│ │Kafka  │ │  MongoDB   │
+│OAuth2 │ │Cloudi-│ │OpenFe-│ │Razor- │ │SMTP   │ │  LangChain │
+│JWT    │ │nary   │ │ign    │ │pay    │ │       │ │  Gemini    │
+│Bucket4│ │Kafka  │ │Kafka  │ │Kafka  │ │       │ │  Sarvam    │
+└───┬───┘ └───┬───┘ └───┬───┘ └───┬───┘ └───┬───┘ └─────┬──────┘
+    │         │         │         │         │            │
+┌───▼─────────▼─────────▼─────────▼─────────▼────────────▼──────────┐
+│                  Service Discovery (Eureka Server)                 │
+│                     Spring Boot 4.0 · Spring Cloud 2025            │
+└───────────────────────────────────────────────────────────────────┘
+    │
+┌───▼──────────────────────────────────────────────────────────────┐
+│                    Apache Kafka (Event Bus)                       │
+│          Profile events · Payment events · Mail triggers          │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
 ## 🔧 Technology Stack
 
-- **Language**: Java,JS
-- **Architecture**: Microservices
-- **API Gateway**: Spring Cloud Gateway
-- **Service Discovery**: Eureka
-- **Authentication**: JWT-based security
-- **Frontend**: Modern responsive web framework
-- **Payment Processing**: Subscription payment service
-- **AI/ML**: AI service for recommendations(gemini,sarvam)
-- **Email**: Mail service for notifications
-- **Build Tools**: Maven
-- **IDE Support**: IntelliJ IDEA, VS Code
+### Backend (Java / Spring Boot)
+
+| Component | Technology |
+|---|---|
+| **Framework** | Spring Boot 3.2.5 / 3.3.5 / 4.0.3 |
+| **API Gateway** | Spring Cloud Gateway (Reactive / WebFlux) |
+| **Service Discovery** | Netflix Eureka Server & Client |
+| **Messaging** | Apache Kafka |
+| **Databases** | MySQL (Auth, UserProfile) · PostgreSQL (BookUpload, Payment) |
+| **Caching** | Redis (Gateway) · Caffeine (BookUpload, UserProfile) |
+| **Security** | Spring Security · JWT (jjwt 0.12) · OAuth2 Client |
+| **Rate Limiting** | Bucket4j |
+| **Resilience** | Resilience4j Circuit Breaker + Spring Retry |
+| **Inter-Service Calls** | OpenFeign |
+| **Payments** | Razorpay Java SDK |
+| **File Storage** | Cloudinary |
+| **Email** | Spring Mail (SMTP) |
+| **API Docs** | SpringDoc OpenAPI (Swagger UI) |
+| **Code Generation** | Lombok |
+| **Monitoring** | Spring Boot Actuator |
+| **Build Tool** | Maven |
+
+### AI Service (Node.js / Express)
+
+| Component | Technology |
+|---|---|
+| **Runtime** | Node.js with Express 5 |
+| **AI/LLM** | LangChain · Google Gemini |
+| **TTS** | Sarvam API |
+| **ML Models** | Xenova/Transformers |
+| **Database** | MongoDB (Mongoose) |
+| **PDF Processing** | pdf-parse |
+| **Security** | Helmet · JWT · express-rate-limit |
+| **Service Discovery** | eureka-js-client |
+
+### Frontend (Next.js)
+
+| Component | Technology |
+|---|---|
+| **Framework** | Next.js 16.1.6 (App Router) |
+| **UI Library** | React 19.2 |
+| **Authentication** | NextAuth.js 4 |
+| **State Management** | Zustand 5 |
+| **Styling** | Tailwind CSS 4 · tw-animate-css |
+| **UI Components** | shadcn/ui · Radix UI |
+| **Animations** | Framer Motion 12 |
+| **Forms** | React Hook Form 7 |
+| **HTTP Client** | Axios |
+| **Icons** | Lucide React |
+| **Theming** | next-themes (dark mode) |
 
 ## 📁 Project Structure
 
 ```
 E-library/
-├── Api_Gateway/              # API Gateway - central entry point for all services
-├── Authentication/           # Authentication and authorization service
-├── BookUpload/              # Book upload and management service
-├── UserProfile/             # User profile management service
-├── subscriptionpayment/     # Subscription and payment processing
-├── Ai_service/              # AI-powered recommendations and analytics
-├── MailSevice/              # Email service for notifications
-├── Eureka/                  # Service discovery and registry
-├── frontend/                # Frontend application (React/Vue/Angular)
-├── README.md                # This file
-└── .vscode/                 # VS Code configuration
-    .idea/                   # IntelliJ IDEA configuration
+├── Api_Gateway/                # Spring Cloud Gateway — routing, JWT filter, Redis cache
+│   └── src/main/java/...
+├── Authentication/             # Auth service — login, signup, OAuth2, JWT, password reset
+│   └── src/main/java/...
+├── BookUpload/                 # Book management — CRUD, Cloudinary upload, Kafka events
+│   └── src/main/java/...
+├── UserProfile/                # User profiles — preferences, OpenFeign, Kafka events
+│   └── src/main/java/...
+├── subscriptionpayment/        # Razorpay payments — subscriptions, plans, webhooks
+│   └── src/main/java/...
+├── MailSevice/                 # Email notifications — Kafka consumer, SMTP sender
+│   └── src/main/java/...
+├── Eureka/                     # Eureka Server — service registry & discovery
+│   └── Eureka/src/main/java/...
+├── Ai_service/                 # AI microservice (Node.js/Express)
+│   ├── src/
+│   │   ├── app.js              # Express app entry point
+│   │   ├── controller/         # analysisController, summaryController, ttsController
+│   │   ├── routes/             # analysisRoutes, summaryRoutes, ttsRoutes
+│   │   ├── service/            # AI service logic (LangChain, Gemini, Sarvam)
+│   │   ├── models/             # Mongoose schemas
+│   │   ├── middleware/         # Auth & rate limiting middleware
+│   │   └── utils/              # Utilities
+│   ├── Dockerfile
+│   └── package.json
+├── frontend/                   # Next.js 16 frontend application
+│   ├── app/
+│   │   ├── (auth)/             # Auth pages — login, signup, reset-password
+│   │   ├── (pages)/            # App pages — Home, Bookcatalog, BookUpload, Profile, Readpage
+│   │   ├── layout.js           # Root layout
+│   │   └── globals.css         # Global styles
+│   ├── components/             # UI components
+│   │   ├── BookCard.jsx        # Book card with preview
+│   │   ├── Categoryfilter.jsx  # Category filtering
+│   │   ├── Featuredbooks.jsx   # Featured books section
+│   │   ├── HeroBanner.jsx      # Landing hero banner
+│   │   ├── Navbar.jsx          # Navigation bar
+│   │   ├── Uploadsection.jsx   # Book upload form
+│   │   ├── Userprofile.jsx     # User profile display
+│   │   └── ui/                 # shadcn/ui primitives
+│   ├── store/                  # Zustand stores (authstore, usebookstore)
+│   ├── lib/                    # API clients (authapi, bookapi)
+│   └── package.json
+└── README.md
 ```
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 
-- Java 17 or higher
-- Maven 3.6+ or Gradle 6.0+
-- Node.js 14+ (for frontend)
-- MySQL,PostgreSQL,MongoDB (for database)
-- Git
+| Requirement | Version |
+|---|---|
+| Java JDK | 17+ |
+| Maven | 3.6+ |
+| Node.js | 18+ (LTS) |
+| MySQL | 8.0+ |
+| PostgreSQL | 15+ |
+| MongoDB | 6.0+ |
+| Apache Kafka | 3.x |
+| Redis | 7.x |
+| Git | Latest |
 
 ### Installation
 
@@ -112,167 +225,235 @@ E-library/
    cd E-library
    ```
 
-2. **Backend Setup**
-   
-   Build all microservices:
+2. **Start infrastructure services**
    ```bash
-   # Using Maven
-   mvn clean install
-   
-   # Or using Gradle
-   gradle build
+   # Start Kafka, Redis, MySQL, PostgreSQL, MongoDB
+   # (Use Docker Compose or install locally)
    ```
 
-3. **Start Services**
-   
-   Start each microservice (in order):
+3. **Start Eureka Server** (must be first)
    ```bash
-   # 1. Eureka Server (Service Discovery)
-   cd Eureka
+   cd Eureka/Eureka
    mvn spring-boot:run
-   
-   # 2. API Gateway
+   # Runs on http://localhost:8761
+   ```
+
+4. **Start API Gateway**
+   ```bash
    cd Api_Gateway
    mvn spring-boot:run
-   
-   # 3. Authentication Service
-   cd Authentication
-   mvn spring-boot:run
-   
-   # 4. User Profile Service
-   cd UserProfile
-   mvn spring-boot:run
-   
-   # 5. Book Upload Service
-   cd BookUpload
-   mvn spring-boot:run
-   
-   # 6. Subscription Payment Service
-   cd subscriptionpayment
-   mvn spring-boot:run
-   
-   # 7. Mail Service
-   cd MailSevice
-   mvn spring-boot:run
-   
-   # 8. AI Service
-   cd Ai_service
-   mvn spring-boot:run
    ```
 
-4. **Frontend Setup**
+5. **Start backend microservices** (in any order)
+   ```bash
+   # Authentication Service
+   cd Authentication && mvn spring-boot:run
+
+   # Book Upload Service
+   cd BookUpload && mvn spring-boot:run
+
+   # User Profile Service
+   cd UserProfile && mvn spring-boot:run
+
+   # Subscription Payment Service
+   cd subscriptionpayment && mvn spring-boot:run
+
+   # Mail Service
+   cd MailSevice && mvn spring-boot:run
+   ```
+
+6. **Start AI Service** (Node.js)
+   ```bash
+   cd Ai_service
+   npm install
+   npm run dev    # Development mode with nodemon
+   # or
+   npm start      # Production mode
+   ```
+
+7. **Start Frontend**
    ```bash
    cd frontend
    npm install
-   npm start
+   npm run dev
+   # Runs on http://localhost:3000
    ```
 
 ## ⚙️ Configuration
 
 ### Environment Variables
 
-Create a `.env` file in the root directory with the following variables:
+Each service requires its own configuration. Create `.env` files or update `application.properties`/`application.yml` in each service:
 
+#### Authentication Service
+```properties
+# MySQL
+spring.datasource.url=jdbc:mysql://localhost:3306/elibrary_auth
+spring.datasource.username=root
+spring.datasource.password=your_password
+
+# JWT
+jwt.secret=your_jwt_secret_key
+jwt.expiration=86400000
+
+# OAuth2 (Google)
+spring.security.oauth2.client.registration.google.client-id=your_client_id
+spring.security.oauth2.client.registration.google.client-secret=your_client_secret
+```
+
+#### BookUpload Service
+```properties
+# PostgreSQL
+spring.datasource.url=jdbc:postgresql://localhost:5432/elibrary_books
+spring.datasource.username=postgres
+spring.datasource.password=your_password
+
+# Cloudinary
+cloudinary.cloud-name=your_cloud_name
+cloudinary.api-key=your_api_key
+cloudinary.api-secret=your_api_secret
+
+# Kafka
+spring.kafka.bootstrap-servers=localhost:9092
+```
+
+#### Subscription Payment Service
+```properties
+# PostgreSQL
+spring.datasource.url=jdbc:postgresql://localhost:5432/elibrary_payments
+
+# Razorpay
+razorpay.key-id=your_razorpay_key_id
+razorpay.key-secret=your_razorpay_key_secret
+```
+
+#### AI Service (`Ai_service/.env`)
 ```env
-# Database Configuration
-DB_HOST=localhost
-DB_PORT=3306
-DB_NAME=elibrary
-DB_USER=root
-DB_PASSWORD=password
-
-# JWT Configuration
-JWT_SECRET=your_jwt_secret_key
-JWT_EXPIRATION=86400000
-
-# Mail Configuration
-MAIL_HOST=smtp.gmail.com
-MAIL_PORT=587
-MAIL_USERNAME=your_email@gmail.com
-MAIL_PASSWORD=your_app_password
-
-# Payment Gateway Configuration
-PAYMENT_API_KEY=your_payment_gateway_key
-PAYMENT_SECRET=your_payment_secret
-
-# AI Service Configuration
-AI_API_KEY=your_ai_service_key
+GEMINI_API_KEY=your_gemini_api_key
+SARVAM_API_KEY=your_sarvam_api_key
+MONGODB_URI=mongodb://localhost:27017/elibrary_ai
+JWT_SECRET=your_jwt_secret
+PORT=5000
+EUREKA_HOST=localhost
+EUREKA_PORT=8761
 ```
 
-### Database Setup
-
-```sql
-CREATE DATABASE elibrary;
-USE elibrary;
-
--- Run migration scripts from each service
--- These should be located in each service's resources/db directory
+#### Frontend (`frontend/.env.local`)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_URL=http://localhost:3000
 ```
 
-## 📚 API Documentation
+#### API Gateway
+```properties
+# Redis
+spring.data.redis.host=localhost
+spring.data.redis.port=6379
 
-### Base URL
+# Eureka
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka/
 ```
-http://localhost:8080/api
+
+#### Mail Service
+```properties
+# SMTP
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=your_email@gmail.com
+spring.mail.password=your_app_password
+
+# Kafka
+spring.kafka.bootstrap-servers=localhost:9092
 ```
 
-### Authentication Endpoints
+## 📚 API Reference
 
-- `POST /auth/register` - Register new user
-- `POST /auth/login` - User login
-- `POST /auth/refresh` - Refresh JWT token
+All requests go through the **API Gateway**. Swagger UI is available on services that include SpringDoc OpenAPI.
 
-### Book Endpoints
+### Authentication
 
-- `GET /books` - Get all books
-- `GET /books/:id` - Get book details
-- `POST /books/upload` - Upload new book
-- `PUT /books/:id` - Update book
-- `DELETE /books/:id` - Delete book
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/auth/register` | Register a new user |
+| `POST` | `/auth/login` | Login with email & password |
+| `POST` | `/auth/refresh` | Refresh JWT token |
+| `POST` | `/auth/reset-password` | Request password reset |
+| `GET` | `/oauth2/authorize/google` | Google OAuth2 login |
 
-### User Profile Endpoints
+### Books
 
-- `GET /profile` - Get user profile
-- `PUT /profile` - Update user profile
-- `GET /profile/preferences` - Get user preferences
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/books` | Get all books (with filtering) |
+| `GET` | `/books/:id` | Get book details |
+| `POST` | `/books/upload` | Upload a new book (multipart) |
+| `PUT` | `/books/:id` | Update book metadata |
+| `DELETE` | `/books/:id` | Delete a book |
 
-### Subscription Endpoints
+### User Profile
 
-- `POST /subscription/plans` - Get subscription plans
-- `POST /subscription/subscribe` - Subscribe to plan
-- `GET /subscription/status` - Get subscription status
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/profile` | Get authenticated user's profile |
+| `PUT` | `/profile` | Update user profile |
+| `GET` | `/profile/preferences` | Get reading preferences |
 
-### AI Recommendations
+### Subscriptions & Payments
 
-- `GET /ai/recommendations` - Get personalized recommendations
-- `GET /ai/search` - AI-powered search
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/subscription/plans` | Get available subscription plans |
+| `POST` | `/subscription/subscribe` | Create a new subscription |
+| `GET` | `/subscription/status` | Get subscription status |
+| `POST` | `/payment/webhook` | Razorpay webhook handler |
+
+### AI Services
+
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/ai/summary` | Generate AI book summary |
+| `POST` | `/ai/analysis` | Analyze book content |
+| `POST` | `/ai/tts` | Convert text to speech |
 
 ## 🤝 Contributing
 
-We welcome contributions! Please follow these steps:
+Contributions are welcome! Please follow these steps:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+1. **Fork** the repository
+2. **Create** a feature branch
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+3. **Commit** your changes
+   ```bash
+   git commit -m "feat: add amazing feature"
+   ```
+4. **Push** to your branch
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+5. **Open** a Pull Request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
 
 ## 📞 Support
 
-For support, please:
-- Open an issue on GitHub
-- Contact the development team at support@elibrary.com
-- Check documentation in each service directory
+- 🐛 [Open an Issue](https://github.com/Praveenvkadam/E-library/issues) on GitHub
+- 📧 Contact the development team
+- 📖 Check documentation in each service directory
 
 ## 🙏 Acknowledgments
 
-- Spring Boot community
-- Netflix OSS (Eureka, API Gateway)
-- All contributors and users
+- [Spring Boot](https://spring.io/projects/spring-boot) & [Spring Cloud](https://spring.io/projects/spring-cloud)
+- [Next.js](https://nextjs.org/) & [React](https://react.dev/)
+- [LangChain](https://www.langchain.com/) & [Google Gemini](https://ai.google.dev/)
+- [Razorpay](https://razorpay.com/) for payment processing
+- [Cloudinary](https://cloudinary.com/) for media management
+- [Netflix OSS](https://netflix.github.io/) (Eureka)
+- [shadcn/ui](https://ui.shadcn.com/) for beautiful components
 
 ---
 
