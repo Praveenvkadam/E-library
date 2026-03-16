@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import useBookStore from "@/store/usebookstore";
 
-const STATUS_COLOR  = { LIVE: "#16a34a" };
-const STATUS_DOT_BG = { LIVE: "#22c55e" };
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
 const CATEGORIES = [
-  "ALL","Fiction", "Non-Fiction", "Science", "Technology", "kids",
+   "Fiction", "Non-Fiction", "Science", "Technology", "kids",
   "Biography",
 ];
 
@@ -25,31 +26,74 @@ const LANGUAGES = [
 const SPINE_COLORS = ["#134e4a", "#022c22", "#065f46", "#1e40af", "#7c3aed", "#991b1b"];
 const BG_COLORS    = ["#fefce8", "#f0fdfa", "#ecfdf5", "#eff6ff", "#f5f3ff", "#fff1f2"];
 
+// ---------------------------------------------------------------------------
+// Shared styles (defined once, reused everywhere)
+// ---------------------------------------------------------------------------
 
-function BookThumb({ book, index = 0, size = 44 }) {
+const labelStyle = {
+  fontSize: 10, fontWeight: 700, letterSpacing: ".1em",
+  textTransform: "uppercase", color: "#94a3b8",
+  marginBottom: 10, display: "block",
+};
+
+const inputStyle = {
+  width: "100%", padding: "10px 14px",
+  border: "1px solid #e2e8f0", borderRadius: 10,
+  fontSize: 13, color: "#1e293b", background: "#fff",
+  outline: "none", fontFamily: "sans-serif",
+  boxSizing: "border-box",
+};
+
+const closeBtnStyle = {
+  background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32,
+  cursor: "pointer", fontSize: 16, color: "#64748b",
+  display: "flex", alignItems: "center", justifyContent: "center",
+};
+
+const cancelBtnStyle = {
+  flex: 1, padding: "10px 0", borderRadius: 10, border: "1.5px solid #e2e8f0",
+  background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600,
+  cursor: "pointer", fontFamily: "sans-serif",
+};
+
+const spinnerStyle = {
+  width: 12, height: 12, borderRadius: "50%",
+  border: "2px solid rgba(255,255,255,.4)", borderTop: "2px solid #fff",
+  display: "inline-block", animation: "spin .7s linear infinite",
+};
+
+const badgeBase = {
+  fontSize: 11, fontWeight: 600, borderRadius: 20, padding: "3px 10px",
+};
+
+// ---------------------------------------------------------------------------
+// BookThumb
+// ---------------------------------------------------------------------------
+
+const BookThumb = memo(function BookThumb({ book, index = 0, size = 44 }) {
+  const h = Math.round(size * 1.36);
+  const baseStyle = {
+    width: size, height: h, borderRadius: 4, flexShrink: 0,
+    overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.15)",
+  };
+
   if (book.b_imageUrl) {
     return (
-      <div style={{
-        width: size, height: Math.round(size * 1.36), borderRadius: 4, flexShrink: 0,
-        overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,.15)",
-      }}>
+      <div style={baseStyle}>
         <img src={book.b_imageUrl} alt={book.b_name}
           style={{ width: "100%", height: "100%", objectFit: "cover" }} />
       </div>
     );
   }
+
   const bg    = BG_COLORS[index % BG_COLORS.length];
   const spine = SPINE_COLORS[index % SPINE_COLORS.length];
   return (
-    <div style={{
-      width: size, height: Math.round(size * 1.36), borderRadius: 4, flexShrink: 0,
-      background: bg, position: "relative", overflow: "hidden",
-      boxShadow: "0 1px 4px rgba(0,0,0,.12)",
-    }}>
+    <div style={{ ...baseStyle, background: bg, position: "relative", boxShadow: "0 1px 4px rgba(0,0,0,.12)" }}>
       <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 6, background: spine }} />
     </div>
   );
-}
+});
 
 // ---------------------------------------------------------------------------
 // Toast
@@ -75,19 +119,22 @@ function Toast({ message, type, onClose }) {
       animation: "toastIn .25s ease",
       fontFamily: "sans-serif",
     }}>
-      <span style={{ fontSize: 18 }}>{isError ? "???" : "???"}</span>
+      <span style={{ fontSize: 18 }}>{isError ? "❌" : "✅"}</span>
       <p style={{ fontSize: 13, color: isError ? "#b91c1c" : "#15803d", fontWeight: 500, flex: 1 }}>
         {message}
       </p>
       <button onClick={onClose}
         style={{ background: "none", border: "none", cursor: "pointer",
           color: isError ? "#b91c1c" : "#15803d", fontSize: 18, lineHeight: 1 }}>
-        x
+        ×
       </button>
     </div>
   );
 }
 
+// ---------------------------------------------------------------------------
+// Modal
+// ---------------------------------------------------------------------------
 
 function Modal({ onClose, children, width = 520 }) {
   useEffect(() => {
@@ -121,6 +168,9 @@ function Modal({ onClose, children, width = 520 }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// PreviewModal
+// ---------------------------------------------------------------------------
 
 function PreviewModal({ book, onClose }) {
   return (
@@ -131,11 +181,7 @@ function PreviewModal({ book, onClose }) {
           <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0, maxWidth: "80%" }}>
             Book Preview
           </h2>
-          <button onClick={onClose}
-            style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32,
-              cursor: "pointer", fontSize: 16, color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            x
-          </button>
+          <button onClick={onClose} style={closeBtnStyle}>×</button>
         </div>
 
         {/* Book info */}
@@ -146,20 +192,17 @@ function PreviewModal({ book, onClose }) {
             <p style={{ fontSize: 13, color: "#64748b", marginBottom: 8 }}>by {book.b_author}</p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {book.b_category && (
-                <span style={{ fontSize: 11, fontWeight: 600, background: "#f0fdfa", color: "#0d9488",
-                  border: "1px solid #ccfbf1", borderRadius: 20, padding: "3px 10px" }}>
+                <span style={{ ...badgeBase, background: "#f0fdfa", color: "#0d9488", border: "1px solid #ccfbf1" }}>
                   {book.b_category}
                 </span>
               )}
               {book.b_language && (
-                <span style={{ fontSize: 11, fontWeight: 600, background: "#f8fafc", color: "#475569",
-                  border: "1px solid #e2e8f0", borderRadius: 20, padding: "3px 10px" }}>
+                <span style={{ ...badgeBase, background: "#f8fafc", color: "#475569", border: "1px solid #e2e8f0" }}>
                   {book.b_language}
                 </span>
               )}
               {book.releaseDate && (
-                <span style={{ fontSize: 11, fontWeight: 600, background: "#fefce8", color: "#ca8a04",
-                  border: "1px solid #fef08a", borderRadius: 20, padding: "3px 10px" }}>
+                <span style={{ ...badgeBase, background: "#fefce8", color: "#ca8a04", border: "1px solid #fef08a" }}>
                   {new Date(book.releaseDate).toLocaleDateString()}
                 </span>
               )}
@@ -228,12 +271,7 @@ function DeleteModal({ book, onConfirm, onClose, isDeleting }) {
           This will permanently delete the book, its cover image, and PDF from Cloudinary. This cannot be undone.
         </p>
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose}
-            style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1.5px solid #e2e8f0",
-              background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              fontFamily: "sans-serif" }}>
-            Cancel
-          </button>
+          <button onClick={onClose} style={cancelBtnStyle}>Cancel</button>
           <button onClick={onConfirm} disabled={isDeleting}
             style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "none",
               background: isDeleting ? "#fca5a5" : "#ef4444", color: "#fff",
@@ -241,12 +279,7 @@ function DeleteModal({ book, onConfirm, onClose, isDeleting }) {
               display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
               fontFamily: "sans-serif" }}>
             {isDeleting ? (
-              <>
-                <span style={{ width: 12, height: 12, borderRadius: "50%",
-                  border: "2px solid rgba(255,255,255,.4)", borderTop: "2px solid #fff",
-                  display: "inline-block", animation: "spin .7s linear infinite" }} />
-                Deleting...
-              </>
+              <><span style={spinnerStyle} /> Deleting...</>
             ) : "Yes, Delete"}
           </button>
         </div>
@@ -256,11 +289,11 @@ function DeleteModal({ book, onConfirm, onClose, isDeleting }) {
 }
 
 // ---------------------------------------------------------------------------
-// Update Modal
+// Update Modal — FIXED: proper error handling, local error state, validation
 // ---------------------------------------------------------------------------
 
 function UpdateModal({ book, onClose, onSuccess }) {
-  const { update, isUploading } = useBookStore();
+  const { update, isUpdating } = useBookStore();
 
   const [title,       setTitle]       = useState(book.b_name        || "");
   const [author,      setAuthor]      = useState(book.b_author       || "");
@@ -273,24 +306,50 @@ function UpdateModal({ book, onClose, onSuccess }) {
   const [newImageFile, setNewImageFile] = useState(null);
   const [newPdfFile,   setNewPdfFile]   = useState(null);
   const [imagePreview, setImagePreview] = useState(book.b_imageUrl || null);
+  const [localError,   setLocalError]   = useState(null);
 
   const imageRef = useRef(null);
   const pdfRef   = useRef(null);
 
-  const handleImageChange = (file) => {
+  // Cleanup object URL on unmount to avoid memory leaks
+  useEffect(() => {
+    return () => {
+      if (newImageFile && imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [newImageFile, imagePreview]);
+
+  const handleImageChange = useCallback((file) => {
     if (!file || !file.type.startsWith("image/")) return;
     setNewImageFile(file);
     setImagePreview(URL.createObjectURL(file));
-  };
+    setLocalError(null);
+  }, []);
 
   const handleSubmit = async () => {
     const bookId = book.b_id ?? null;
-    if (!bookId) return;
+
+    // Validate required fields
+    if (!bookId) {
+      setLocalError("Book ID is missing — cannot update.");
+      return;
+    }
+    if (!title.trim()) {
+      setLocalError("Book title is required.");
+      return;
+    }
+    if (!author.trim()) {
+      setLocalError("Author name is required.");
+      return;
+    }
+
+    setLocalError(null);
 
     const bookRequest = {
-      B_name:        title,
-      B_author:      author,
-      B_description: description,
+      B_name:        title.trim(),
+      B_author:      author.trim(),
+      B_description: description.trim(),
       releaseDate:   pubDate,
       B_Category:    category,
       B_Language:    language,
@@ -305,6 +364,9 @@ function UpdateModal({ book, onClose, onSuccess }) {
     if (result.success) {
       if (onSuccess) onSuccess();
       else onClose();
+    } else {
+      // Show error inside the modal so user sees what went wrong
+      setLocalError(result.error || "Failed to update book. Please try again.");
     }
   };
 
@@ -314,12 +376,27 @@ function UpdateModal({ book, onClose, onSuccess }) {
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
           <h2 style={{ fontSize: 18, fontWeight: 800, color: "#1e293b", margin: 0 }}>Update Book</h2>
-          <button onClick={onClose}
-            style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 32, height: 32,
-              cursor: "pointer", fontSize: 16, color: "#64748b", display: "flex", alignItems: "center", justifyContent: "center" }}>
-            x
-          </button>
+          <button onClick={onClose} style={closeBtnStyle}>×</button>
         </div>
+
+        {/* Local error banner */}
+        {localError && (
+          <div style={{
+            background: "#fef2f2", border: "1px solid #fecaca", borderLeft: "4px solid #ef4444",
+            borderRadius: 10, padding: "10px 14px", marginBottom: 16,
+            display: "flex", alignItems: "center", gap: 8,
+          }}>
+            <span style={{ fontSize: 14 }}>⚠️</span>
+            <p style={{ fontSize: 12, color: "#b91c1c", fontWeight: 500, flex: 1, margin: 0 }}>
+              {localError}
+            </p>
+            <button onClick={() => setLocalError(null)}
+              style={{ background: "none", border: "none", cursor: "pointer",
+                color: "#b91c1c", fontSize: 14, lineHeight: 1 }}>
+              ×
+            </button>
+          </div>
+        )}
 
         {/* Cover swap */}
         <div style={{ display: "flex", gap: 16, marginBottom: 20, alignItems: "flex-start" }}>
@@ -347,8 +424,8 @@ function UpdateModal({ book, onClose, onSuccess }) {
           </div>
 
           <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 10 }}>
-            <input placeholder="Book Title" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
-            <input placeholder="Author Name" value={author} onChange={(e) => setAuthor(e.target.value)} style={inputStyle} />
+            <input placeholder="Book Title" value={title} onChange={(e) => { setTitle(e.target.value); setLocalError(null); }} style={inputStyle} />
+            <input placeholder="Author Name" value={author} onChange={(e) => { setAuthor(e.target.value); setLocalError(null); }} style={inputStyle} />
           </div>
         </div>
 
@@ -398,25 +475,15 @@ function UpdateModal({ book, onClose, onSuccess }) {
 
         {/* Footer */}
         <div style={{ display: "flex", gap: 10 }}>
-          <button onClick={onClose}
-            style={{ flex: 1, padding: "10px 0", borderRadius: 10, border: "1.5px solid #e2e8f0",
-              background: "#fff", color: "#475569", fontSize: 13, fontWeight: 600,
-              cursor: "pointer", fontFamily: "sans-serif" }}>
-            Cancel
-          </button>
-          <button onClick={handleSubmit} disabled={isUploading}
+          <button onClick={onClose} style={cancelBtnStyle}>Cancel</button>
+          <button onClick={handleSubmit} disabled={isUpdating}
             style={{ flex: 2, padding: "10px 0", borderRadius: 10, border: "none",
-              background: isUploading ? "#a5f3fc" : "#0d9488", color: "#fff",
-              fontSize: 13, fontWeight: 700, cursor: isUploading ? "not-allowed" : "pointer",
+              background: isUpdating ? "#a5f3fc" : "#0d9488", color: "#fff",
+              fontSize: 13, fontWeight: 700, cursor: isUpdating ? "not-allowed" : "pointer",
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               fontFamily: "sans-serif", boxShadow: "0 4px 12px rgba(13,148,136,.25)" }}>
-            {isUploading ? (
-              <>
-                <span style={{ width: 12, height: 12, borderRadius: "50%",
-                  border: "2px solid rgba(255,255,255,.4)", borderTop: "2px solid #fff",
-                  display: "inline-block", animation: "spin .7s linear infinite" }} />
-                Saving...
-              </>
+            {isUpdating ? (
+              <><span style={spinnerStyle} /> Saving...</>
             ) : "Save Changes"}
           </button>
         </div>
@@ -450,31 +517,44 @@ export default function UploadSection({ setActivePage }) {
   // Toast
   const [toast, setToast] = useState(null);
 
-  const { upload, remove, loadAll, books, isUploading, isLoadingList, error, successMsg, clearMessages } = useBookStore();
+  const {
+    upload, remove, loadAll, books,
+    isUploading, isDeleting, isLoadingList,
+    error, successMsg, clearMessages,
+  } = useBookStore();
 
   const coverInputRef = useRef(null);
   const pdfInputRef   = useRef(null);
 
-  useEffect(() => { loadAll(); }, []);
+  // Load books on mount
+  useEffect(() => { loadAll(); }, [loadAll]);
 
+  // Show toast for success messages
   useEffect(() => {
-    if (successMsg) { setToast({ message: successMsg, type: "success" }); clearMessages(); }
-  }, [successMsg]);
+    if (successMsg) {
+      setToast({ message: successMsg, type: "success" });
+      clearMessages();
+    }
+  }, [successMsg, clearMessages]);
 
+  // Show toast for error messages
   useEffect(() => {
-    if (error) { setToast({ message: error, type: "error" }); clearMessages(); }
-  }, [error]);
+    if (error) {
+      setToast({ message: error, type: "error" });
+      clearMessages();
+    }
+  }, [error, clearMessages]);
 
-  const handleCoverFile = (file) => {
+  const handleCoverFile = useCallback((file) => {
     if (!file || !file.type.startsWith("image/")) return;
     setCoverFile(file);
     setCoverPreview(URL.createObjectURL(file));
-  };
+  }, []);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setCoverFile(null); setCoverPreview(null); setPdfFile(null);
     setTitle(""); setAuthor(""); setPubDate(""); setLanguage(""); setCategory(""); setDescription("");
-  };
+  }, []);
 
   const allFilled = coverFile && pdfFile && title && author && description && pubDate && language && category;
 
@@ -496,6 +576,8 @@ export default function UploadSection({ setActivePage }) {
     const result = await remove(id);
     if (result.success) { setDeleteBook(null); loadAll(); }
   };
+
+  const handleToastClose = useCallback(() => setToast(null), []);
 
   const recentBooks = books.slice(0, 6);
 
@@ -527,12 +609,12 @@ export default function UploadSection({ setActivePage }) {
           book={deleteBook}
           onConfirm={handleDelete}
           onClose={() => setDeleteBook(null)}
-          isDeleting={isUploading}
+          isDeleting={isDeleting}
         />
       )}
 
       {/* Toast */}
-      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={handleToastClose} />}
 
       {/* Page heading */}
       <div style={{ marginBottom: 28 }}>
@@ -681,12 +763,7 @@ export default function UploadSection({ setActivePage }) {
                 boxShadow: allFilled && !isUploading ? "0 4px 14px rgba(249,115,22,.3)" : "none",
                 transition: "background .2s, box-shadow .2s", minWidth: 140 }}>
               {isUploading ? (
-                <>
-                  <span style={{ width: 14, height: 14, borderRadius: "50%",
-                    border: "2px solid rgba(255,255,255,.4)", borderTop: "2px solid #fff",
-                    display: "inline-block", animation: "spin .7s linear infinite" }} />
-                  Uploading...
-                </>
+                <><span style={{ ...spinnerStyle, width: 14, height: 14 }} /> Uploading...</>
               ) : (
                 <>
                   Publish Book
@@ -733,104 +810,14 @@ export default function UploadSection({ setActivePage }) {
             ) : (
               <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 8 }}>
                 {recentBooks.map((book, i) => (
-                  <li key={book.b_id ?? book.id ?? i}
-                    style={{ borderRadius: 12, border: "1px solid #f1f5f9",
-                      background: "#fafafa", overflow: "hidden",
-                      transition: "box-shadow .15s, border-color .15s" }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,.08)";
-                      e.currentTarget.style.borderColor = "#e2e8f0";
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.boxShadow = "none";
-                      e.currentTarget.style.borderColor = "#f1f5f9";
-                    }}
-                  >
-                    {/* Top row: thumb + info */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 12px 8px" }}>
-                      <BookThumb book={book} index={i} size={40} />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: 0,
-                          overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {book.b_name}
-                        </p>
-                        <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0" }}>
-                          by {book.b_author}
-                        </p>
-                      </div>
-                      {/* LIVE badge */}
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: 4,
-                        fontSize: 10, fontWeight: 700, letterSpacing: ".06em",
-                        color: "#16a34a", background: "#f0fdf4",
-                        border: "1px solid #bbf7d0", borderRadius: 20,
-                        padding: "2px 8px", flexShrink: 0 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: "50%",
-                          background: "#22c55e", display: "inline-block" }} />
-                        LIVE
-                      </span>
-                    </div>
-
-                    {/* Divider */}
-                    <div style={{ height: 1, background: "#f1f5f9", margin: "0 12px" }} />
-
-                    {/* Action buttons row — always visible */}
-                    <div style={{ display: "flex", padding: "8px 10px", gap: 6 }}>
-
-                      {/* Preview */}
-                      <button
-                        onClick={() => setPreviewBook(book)}
-                        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                          gap: 5, padding: "6px 0", borderRadius: 8, border: "1px solid #ccfbf1",
-                          background: "#f0fdfa", color: "#0d9488", fontSize: 11, fontWeight: 600,
-                          cursor: "pointer", fontFamily: "sans-serif", transition: "background .15s" }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = "#ccfbf1"}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "#f0fdfa"}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                          <circle cx="12" cy="12" r="3" />
-                        </svg>
-                        Preview
-                      </button>
-
-                      {/* Update */}
-                      <button
-                        onClick={() => setUpdateBook(book)}
-                        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                          gap: 5, padding: "6px 0", borderRadius: 8, border: "1px solid #dbeafe",
-                          background: "#eff6ff", color: "#3b82f6", fontSize: 11, fontWeight: 600,
-                          cursor: "pointer", fontFamily: "sans-serif", transition: "background .15s" }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = "#dbeafe"}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "#eff6ff"}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                        Update
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        onClick={() => setDeleteBook(book)}
-                        style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
-                          gap: 5, padding: "6px 0", borderRadius: 8, border: "1px solid #fecaca",
-                          background: "#fef2f2", color: "#ef4444", fontSize: 11, fontWeight: 600,
-                          cursor: "pointer", fontFamily: "sans-serif", transition: "background .15s" }}
-                        onMouseEnter={(e) => e.currentTarget.style.background = "#fecaca"}
-                        onMouseLeave={(e) => e.currentTarget.style.background = "#fef2f2"}
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6" />
-                          <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-                          <path d="M10 11v6M14 11v6" />
-                          <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-                        </svg>
-                        Delete
-                      </button>
-
-                    </div>
-                  </li>
+                  <BookListItem
+                    key={book.b_id ?? book.id ?? i}
+                    book={book}
+                    index={i}
+                    onPreview={setPreviewBook}
+                    onUpdate={setUpdateBook}
+                    onDelete={setDeleteBook}
+                  />
                 ))}
               </ul>
             )}
@@ -858,16 +845,105 @@ export default function UploadSection({ setActivePage }) {
   );
 }
 
-const labelStyle = {
-  fontSize: 10, fontWeight: 700, letterSpacing: ".1em",
-  textTransform: "uppercase", color: "#94a3b8",
-  marginBottom: 10, display: "block",
+// ---------------------------------------------------------------------------
+// BookListItem — extracted for cleaner code & memoization
+// ---------------------------------------------------------------------------
+
+const actionBtnBase = {
+  flex: 1, display: "flex", alignItems: "center", justifyContent: "center",
+  gap: 5, padding: "6px 0", borderRadius: 8,
+  fontSize: 11, fontWeight: 600, cursor: "pointer",
+  fontFamily: "sans-serif", transition: "background .15s",
 };
 
-const inputStyle = {
-  width: "100%", padding: "10px 14px",
-  border: "1px solid #e2e8f0", borderRadius: 10,
-  fontSize: 13, color: "#1e293b", background: "#fff",
-  outline: "none", fontFamily: "sans-serif",
-  boxSizing: "border-box",
-};
+const BookListItem = memo(function BookListItem({ book, index, onPreview, onUpdate, onDelete }) {
+  return (
+    <li
+      style={{ borderRadius: 12, border: "1px solid #f1f5f9",
+        background: "#fafafa", overflow: "hidden",
+        transition: "box-shadow .15s, border-color .15s" }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.boxShadow = "0 2px 12px rgba(0,0,0,.08)";
+        e.currentTarget.style.borderColor = "#e2e8f0";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.boxShadow = "none";
+        e.currentTarget.style.borderColor = "#f1f5f9";
+      }}
+    >
+      {/* Top row: thumb + info */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 12px 8px" }}>
+        <BookThumb book={book} index={index} size={40} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#1e293b", margin: 0,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {book.b_name}
+          </p>
+          <p style={{ fontSize: 11, color: "#94a3b8", margin: "2px 0 0" }}>
+            by {book.b_author}
+          </p>
+        </div>
+        {/* LIVE badge */}
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 4,
+          fontSize: 10, fontWeight: 700, letterSpacing: ".06em",
+          color: "#16a34a", background: "#f0fdf4",
+          border: "1px solid #bbf7d0", borderRadius: 20,
+          padding: "2px 8px", flexShrink: 0 }}>
+          <span style={{ width: 5, height: 5, borderRadius: "50%",
+            background: "#22c55e", display: "inline-block" }} />
+          LIVE
+        </span>
+      </div>
+
+      {/* Divider */}
+      <div style={{ height: 1, background: "#f1f5f9", margin: "0 12px" }} />
+
+      {/* Action buttons row */}
+      <div style={{ display: "flex", padding: "8px 10px", gap: 6 }}>
+        {/* Preview */}
+        <button
+          onClick={() => onPreview(book)}
+          style={{ ...actionBtnBase, border: "1px solid #ccfbf1", background: "#f0fdfa", color: "#0d9488" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "#ccfbf1"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "#f0fdfa"}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          Preview
+        </button>
+
+        {/* Update */}
+        <button
+          onClick={() => onUpdate(book)}
+          style={{ ...actionBtnBase, border: "1px solid #dbeafe", background: "#eff6ff", color: "#3b82f6" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "#dbeafe"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "#eff6ff"}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+          Update
+        </button>
+
+        {/* Delete */}
+        <button
+          onClick={() => onDelete(book)}
+          style={{ ...actionBtnBase, border: "1px solid #fecaca", background: "#fef2f2", color: "#ef4444" }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "#fecaca"}
+          onMouseLeave={(e) => e.currentTarget.style.background = "#fef2f2"}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+          </svg>
+          Delete
+        </button>
+      </div>
+    </li>
+  );
+});

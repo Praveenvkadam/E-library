@@ -55,20 +55,21 @@ function normalizeList(raw) {
 // ---------------------------------------------------------------------------
 const useBookStore = create((set) => ({
 
-  // --- state ----------------------------------------------------------------
+  
   books:         [],
-  selectedBook:  null,
-  isUploading:   false,   // upload / update / delete spinner
-  isLoadingList: false,   // sidebar / catalog loading
+  selectedBook:  null,// upload spinner
+  isUpdating:    false,   
+  isDeleting:    false,   
+  isLoadingList: false,   
   error:         null,
   successMsg:    null,
 
-  // --- helpers --------------------------------------------------------------
+ 
   clearMessages: () => set({ error: null, successMsg: null }),
   selectBook:    (book) => set({ selectedBook: book }),
   clearSelected: () => set({ selectedBook: null }),
 
-  // --- upload ---------------------------------------------------------------
+
   upload: async ({ bookRequest, imageFile, pdfFile }) => {
     set({ isUploading: true, error: null, successMsg: null });
     try {
@@ -87,35 +88,35 @@ const useBookStore = create((set) => ({
 
   // --- update ---------------------------------------------------------------
   update: async (bookId, { bookRequest, imageFile, pdfFile }) => {
-    set({ isUploading: true, error: null, successMsg: null });
+    set({ isUpdating: true, error: null, successMsg: null });
     try {
       const updated = normalizeBook(await updateBook({ bookId, bookRequest, imageFile, pdfFile }));
       set((s) => ({
         books:        s.books.map((b) => (b.b_id === bookId ? updated : b)),
         selectedBook: null,
-        isUploading:  false,
+        isUpdating:   false,
         successMsg:   `"${updated.b_name || "Book"}" updated successfully!`,
       }));
       return { success: true, book: updated };
     } catch (err) {
-      set({ error: err.message, isUploading: false });
+      set({ error: err.message, isUpdating: false });
       return { success: false, error: err.message };
     }
   },
 
   // --- delete ---------------------------------------------------------------
   remove: async (bookId) => {
-    set({ isUploading: true, error: null, successMsg: null });
+    set({ isDeleting: true, error: null, successMsg: null });
     try {
       const deleted = normalizeBook(await deleteBook(bookId));
       set((s) => ({
         books:       s.books.filter((b) => b.b_id !== bookId),
-        isUploading: false,
+        isDeleting:  false,
         successMsg:  `"${deleted?.b_name || "Book"}" deleted.`,
       }));
       return { success: true };
     } catch (err) {
-      set({ error: err.message, isUploading: false });
+      set({ error: err.message, isDeleting: false });
       return { success: false, error: err.message };
     }
   },
