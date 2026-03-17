@@ -124,7 +124,7 @@ export default function HeroBanner() {
           </p>
 
           <div className="hero-btns">
-            <button style={{
+            <button suppressHydrationWarning style={{
               background:"#f97316", color:"#fff", border:"none",
               padding:"12px 26px", borderRadius:40, fontWeight:700, fontSize:14,
               cursor:"pointer", display:"inline-flex", alignItems:"center", gap:7,
@@ -132,7 +132,7 @@ export default function HeroBanner() {
               fontFamily:"'Inter',sans-serif",
             }}>📖 Borrow Now</button>
 
-            <button style={{
+            <button suppressHydrationWarning style={{
               background:"rgba(255,255,255,.14)", color:"#fff",
               border:"1.5px solid rgba(255,255,255,.38)",
               padding:"12px 26px", borderRadius:40, fontWeight:600, fontSize:14,

@@ -2,6 +2,7 @@ package com.BookUpload.BookUpload.Controller;
 
 import com.BookUpload.BookUpload.DTO.BookRequest;
 import com.BookUpload.BookUpload.DTO.BookResponce;
+import com.BookUpload.BookUpload.Entity.Book;
 import com.BookUpload.BookUpload.Service.BookService;
 import com.BookUpload.BookUpload.Service.RateLimitService;
 import io.github.bucket4j.Bucket;
@@ -12,16 +13,21 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.InputStreamResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
 import java.util.Date;
@@ -34,7 +40,6 @@ import java.util.concurrent.CompletableFuture;
 @Tag(name = "Books", description = "Book management endpoints")
 public class BookController {
 
-    // FIX 4: Constructor injection instead of field injection
     private final BookService      bookService;
     private final RateLimitService rateLimitService;
 
@@ -45,7 +50,6 @@ public class BookController {
 
     // =========================================================================
     // UPLOAD — POST /api/books/upload
-    // FIX 1: Returns 202 Accepted immediately; upload runs async in background
     // =========================================================================
     @Operation(summary = "Upload a new book", description = "Admin only — uploads a book with cover image and PDF file")
     @ApiResponses({
@@ -72,7 +76,6 @@ public class BookController {
             @RequestHeader(value = "X-User-Roles", required = false) String roles,
             HttpServletRequest httpRequest
     ) {
-        // FIX 5: getClientIp called once and reused
         String clientIp = getClientIp(httpRequest);
 
         Bucket bucket = rateLimitService.resolveAdminBucket(clientIp);
@@ -97,9 +100,7 @@ public class BookController {
                     null, null, parsedDate, B_Category, B_Language
             );
 
-            // FIX 1: Fire-and-forget — thread is no longer blocked by file I/O
             CompletableFuture<BookResponce> future = bookService.BookUploadAsync(bookRequest, imageFile, pdfFile);
-
             future.exceptionally(ex -> {
                 log.error("Async upload failed for book '{}': {}", B_name, ex.getMessage());
                 return null;
@@ -120,7 +121,6 @@ public class BookController {
 
     // =========================================================================
     // GET ALL — GET /api/books
-    // FIX 2: Paginated response — no longer loads all books into memory at once
     // =========================================================================
     @Operation(summary = "Get all books", description = "Returns a paginated list of all available books")
     @ApiResponses({
@@ -130,8 +130,8 @@ public class BookController {
     })
     @GetMapping
     public ResponseEntity<?> getAllBooks(
-            @Parameter(description = "Page number (0-based)") @RequestParam(defaultValue = "0")  int page,
-            @Parameter(description = "Page size")             @RequestParam(defaultValue = "20") int size,
+            @Parameter(description = "Page number (0-based)") @RequestParam(name = "page", defaultValue = "0")  int page,
+            @Parameter(description = "Page size")             @RequestParam(name = "size", defaultValue = "20") int size,
             HttpServletRequest httpRequest
     ) {
         String clientIp = getClientIp(httpRequest);
@@ -165,15 +165,15 @@ public class BookController {
     })
     @GetMapping("/search")
     public ResponseEntity<?> searchBooks(
-            @Parameter(description = "Book title")                @RequestParam(required = false) String B_name,
-            @Parameter(description = "Author name")               @RequestParam(required = false) String B_author,
-            @Parameter(description = "Release date (yyyy-MM-dd)")
+            @Parameter(description = "Book title")    @RequestParam(required = false) String B_name,
+            @Parameter(description = "Author name")   @RequestParam(required = false) String B_author,
+            @Parameter(description = "Release date")
             @RequestParam(required = false)
-            @DateTimeFormat(pattern = "yyyy-MM-dd")               Date releaseDate,
-            @Parameter(description = "Category")                  @RequestParam(required = false) String B_Category,
-            @Parameter(description = "Language")                  @RequestParam(required = false) String B_Language,
-            @Parameter(description = "Page number (0-based)")     @RequestParam(defaultValue = "0")  int page,
-            @Parameter(description = "Page size")                 @RequestParam(defaultValue = "20") int size,
+            @DateTimeFormat(pattern = "yyyy-MM-dd")   Date releaseDate,
+            @Parameter(description = "Category")      @RequestParam(required = false) String B_Category,
+            @Parameter(description = "Language")      @RequestParam(required = false) String B_Language,
+            @Parameter(description = "Page number")   @RequestParam(name = "page", defaultValue = "0")  int page,
+            @Parameter(description = "Page size")     @RequestParam(name = "size", defaultValue = "20") int size,
             HttpServletRequest httpRequest
     ) {
         String clientIp = getClientIp(httpRequest);
@@ -198,8 +198,65 @@ public class BookController {
     }
 
     // =========================================================================
+    // STREAM PDF — GET /api/books/{id}/pdf
+    // Proxies the Cloudinary PDF through the backend so the browser always
+    // receives Content-Disposition: inline — no CORS, no download prompt.
+    // =========================================================================
+    @Operation(summary = "Stream PDF inline", description = "Proxies the book PDF from Cloudinary with inline display")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PDF streamed successfully"),
+            @ApiResponse(responseCode = "404", description = "Book or PDF not found"),
+            @ApiResponse(responseCode = "429", description = "Too many requests"),
+            @ApiResponse(responseCode = "502", description = "Cloudinary unreachable"),
+            @ApiResponse(responseCode = "500", description = "Failed to stream PDF")
+    })
+    @GetMapping("/{id}/pdf")
+    public ResponseEntity<InputStreamResource> streamPdf(
+            @Parameter(description = "Book ID") @PathVariable Long id,
+            HttpServletRequest httpRequest
+    ) {
+        String clientIp = getClientIp(httpRequest);
+        Bucket bucket = rateLimitService.resolvePublicBucket(clientIp);
+        if (!bucket.tryConsume(1)) {
+            log.warn("Rate limit exceeded on /{}/pdf by IP: {}", id, clientIp);
+            return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS).build();
+        }
+
+        try {
+            Book book = bookService.findById(id);
+            if (book == null || book.getB_pdfUrl() == null) {
+                log.warn("PDF not found for bookId: {}", id);
+                return ResponseEntity.notFound().build();
+            }
+
+            URL url = new URL(book.getB_pdfUrl());
+            HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestProperty("User-Agent", "Mozilla/5.0");
+            conn.setConnectTimeout(10_000);
+            conn.setReadTimeout(30_000);
+            conn.connect();
+
+            if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
+                log.error("Cloudinary returned HTTP {} for bookId {}", conn.getResponseCode(), id);
+                return ResponseEntity.status(HttpStatus.BAD_GATEWAY).build();
+            }
+
+            String safeFilename = book.getB_name().replaceAll("[^a-zA-Z0-9 _-]", "").trim() + ".pdf";
+
+            return ResponseEntity.ok()
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + safeFilename + "\"")
+                    .header(HttpHeaders.CACHE_CONTROL, "public, max-age=3600")
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .body(new InputStreamResource(conn.getInputStream()));
+
+        } catch (Exception e) {
+            log.error("PDF stream failed for bookId {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    // =========================================================================
     // UPDATE — PUT /api/books/{id}
-    // FIX 1 (also): async file replacement
     // =========================================================================
     @Operation(summary = "Update a book", description = "Admin only — updates book details and optionally replaces files")
     @ApiResponses({
@@ -250,9 +307,7 @@ public class BookController {
                     null, null, parsedDate, B_Category, B_Language
             );
 
-            // FIX 1: Async update — no blocking on file I/O
             CompletableFuture<BookResponce> future = bookService.BookUpdateAsync(id, bookRequest, imageFile, pdfFile);
-
             future.exceptionally(ex -> {
                 log.error("Async update failed for bookId {}: {}", id, ex.getMessage());
                 return null;
@@ -332,7 +387,6 @@ public class BookController {
         return java.sql.Date.valueOf(localDate);
     }
 
-    // FIX 5: Called once per request and result is reused — not duplicated per endpoint
     private String getClientIp(HttpServletRequest request) {
         String forwarded = request.getHeader("X-Forwarded-For");
         if (forwarded != null && !forwarded.isBlank()) {
@@ -343,12 +397,7 @@ public class BookController {
 
     private boolean hasRole(String rolesHeader, String requiredRole) {
         if (rolesHeader == null || rolesHeader.isBlank()) return false;
-
-        String normalizedRequired = requiredRole
-                .replace("ROLE_", "")
-                .trim()
-                .toUpperCase();
-
+        String normalizedRequired = requiredRole.replace("ROLE_", "").trim().toUpperCase();
         return List.of(rolesHeader.split(","))
                 .stream()
                 .map(String::trim)

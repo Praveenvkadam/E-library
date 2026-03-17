@@ -51,6 +51,7 @@ function CategoryPill({ label, isActive, onClick }) {
 
   return (
     <button
+      suppressHydrationWarning
       onClick={onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}

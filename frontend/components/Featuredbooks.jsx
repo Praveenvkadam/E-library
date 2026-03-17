@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import useBookStore from "@/store/usebookstore";
 import { BookCard } from "./BookCard";
 
@@ -14,7 +14,13 @@ const COVER_PAIRS = [
 ];
 
 export default function FeaturedBooks({ activeCategory, onBorrow }) {
-  const { books, isLoadingList, error, loadAll } = useBookStore();
+  const { books, isLoadingList, error, setActiveReadBook } = useBookStore();
+  const router = useRouter();
+
+  const handleRead = (book) => {
+    setActiveReadBook(book);
+    router.push("/Readpage");
+  };
 
   // Filter books by the active category (case-insensitive), "ALL" shows everything
   const filtered =
@@ -68,7 +74,7 @@ export default function FeaturedBooks({ activeCategory, onBorrow }) {
       ) : (
         <div className="featured-grid">
           {cardBooks.map((book) => (
-            <BookCard key={book.id} book={book} onBorrow={onBorrow} />
+            <BookCard key={book.id} book={book} onRead={handleRead} />
           ))}
         </div>
       )}

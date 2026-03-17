@@ -34,33 +34,66 @@ function normalizeList(raw) {
   return list.map(normalizeBook).filter(Boolean);
 }
 
-// ✅ set, get both accepted
 const useBookStore = create((set, get) => ({
 
   // --- state ----------------------------------------------------------------
-  books:         [],
-  selectedBook:  null,
-  isUploading:   false,
-  isLoadingList: false,
-  error:         null,
-  successMsg:    null,
+  books:          [],
+  selectedBook:   null,
+  activeReadBook: null,
+  isUploading:    false,
+  isLoadingList:  false,
+  error:          null,
+  successMsg:     null,
 
   // --- helpers --------------------------------------------------------------
-  clearMessages: () => set({ error: null, successMsg: null }),
-  selectBook:    (book) => set({ selectedBook: book }),
-  clearSelected: () => set({ selectedBook: null }),
+  clearMessages:     () => set({ error: null, successMsg: null }),
+  selectBook:        (book) => set({ selectedBook: book }),
+  clearSelected:     () => set({ selectedBook: null }),
+  setActiveReadBook: (book) => set({ activeReadBook: book }),
 
   // --- upload ---------------------------------------------------------------
+  // The backend returns 202 Accepted (async) with a plain string — not a book
+  // object. So we build an optimistic book from the form data immediately and
+  // add it to the list. When loadAll() runs next time it will be replaced with
+  // the real saved version (with the actual b_id from the DB).
   upload: async ({ bookRequest, imageFile, pdfFile }) => {
     set({ isUploading: true, error: null, successMsg: null });
     try {
-      const newBook = normalizeBook(await uploadBook({ bookRequest, imageFile, pdfFile }));
+      await uploadBook({ bookRequest, imageFile, pdfFile });
+
+      // Build a temporary preview from form data so the right panel updates
+      // immediately without waiting for the async backend job to finish.
+      const optimisticBook = {
+        b_id:          null,           // not yet assigned by DB
+        b_name:        bookRequest.B_name        || "Untitled",
+        b_author:      bookRequest.B_author      || "Unknown",
+        b_description: bookRequest.B_description || "",
+        b_imageUrl:    imageFile
+                         ? URL.createObjectURL(imageFile)   // local preview
+                         : null,
+        b_pdfUrl:      null,
+        releaseDate:   bookRequest.releaseDate   || null,
+        b_category:    bookRequest.B_Category    || "",
+        b_language:    bookRequest.B_Language    || "",
+        _optimistic:   true,           // flag so we can replace it later
+      };
+
       set((s) => ({
-        books:       [newBook, ...s.books],
+        books:       [optimisticBook, ...s.books],
         isUploading: false,
-        successMsg:  `"${newBook.b_name || "Book"}" uploaded successfully!`,
+        successMsg:  `"${optimisticBook.b_name}" uploaded successfully!`,
       }));
-      return { success: true, book: newBook };
+
+      // After a short delay, reload the list from the server so the optimistic
+      // entry is replaced with the real saved book (with actual id + URLs).
+      setTimeout(() => {
+        // Force a fresh fetch by resetting the books list first
+        set({ books: [] });
+        get().loadAll();
+      }, 3000);
+
+      return { success: true, book: optimisticBook };
+
     } catch (err) {
       set({ error: err.message, isUploading: false });
       return { success: false, error: err.message };
@@ -68,17 +101,43 @@ const useBookStore = create((set, get) => ({
   },
 
   // --- update ---------------------------------------------------------------
+  // Same situation — backend returns 202 string, so update optimistically.
   update: async (bookId, { bookRequest, imageFile, pdfFile }) => {
     set({ isUploading: true, error: null, successMsg: null });
     try {
-      const updated = normalizeBook(await updateBook({ bookId, bookRequest, imageFile, pdfFile }));
+      await updateBook({ bookId, bookRequest, imageFile, pdfFile });
+
       set((s) => ({
-        books:        s.books.map((b) => (b.b_id === bookId ? updated : b)),
+        books: s.books.map((b) =>
+          b.b_id === bookId
+            ? {
+                ...b,
+                b_name:        bookRequest.B_name        || b.b_name,
+                b_author:      bookRequest.B_author      || b.b_author,
+                b_description: bookRequest.B_description || b.b_description,
+                b_imageUrl:    imageFile
+                                 ? URL.createObjectURL(imageFile)
+                                 : b.b_imageUrl,
+                releaseDate:   bookRequest.releaseDate   || b.releaseDate,
+                b_category:    bookRequest.B_Category    || b.b_category,
+                b_language:    bookRequest.B_Language    || b.b_language,
+                _optimistic:   true,
+              }
+            : b
+        ),
         selectedBook: null,
         isUploading:  false,
-        successMsg:   `"${updated.b_name || "Book"}" updated successfully!`,
+        successMsg:   `"${bookRequest.B_name || "Book"}" updated successfully!`,
       }));
-      return { success: true, book: updated };
+
+      // Refresh from server after delay to get real Cloudinary URLs
+      setTimeout(() => {
+        set({ books: [] });
+        get().loadAll();
+      }, 3000);
+
+      return { success: true };
+
     } catch (err) {
       set({ error: err.message, isUploading: false });
       return { success: false, error: err.message };
@@ -105,8 +164,6 @@ const useBookStore = create((set, get) => ({
   // --- load all -------------------------------------------------------------
   loadAll: async () => {
     const { isLoadingList, books } = get();
-
-    // ✅ Guard — only fetch if not already loading and no data yet
     if (isLoadingList || books.length > 0) return;
 
     set({ isLoadingList: true, error: null });

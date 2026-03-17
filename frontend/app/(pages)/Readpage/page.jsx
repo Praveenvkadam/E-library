@@ -4,13 +4,17 @@ import Head from "next/head";
 import LeftSidebar from "@/components/Read_Components/LeftSidebar";
 import BookContent from "@/components/Read_Components/BookContent";
 import RightToolbar from "@/components/Read_Components/RightToolbar";
+import useBookStore from "@/store/usebookstore";
+import { getBookPdfUrl } from "@/lib/bookapi";
 
 export default function ReadPage() {
-  const [activeChapter, setActiveChapter] = useState(3);
-  const [fontSize, setFontSize] = useState(16);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { activeReadBook } = useBookStore();
 
-  const handleZoomIn = () => setFontSize((f) => Math.min(f + 2, 28));
+  const [activeChapter, setActiveChapter] = useState(3);
+  const [fontSize, setFontSize]           = useState(16);
+  const [sidebarOpen, setSidebarOpen]     = useState(false);
+
+  const handleZoomIn  = () => setFontSize((f) => Math.min(f + 2, 28));
   const handleZoomOut = () => setFontSize((f) => Math.max(f - 2, 12));
 
   const handleChapterSelect = (id) => {
@@ -35,6 +39,66 @@ export default function ReadPage() {
     };
   }, [sidebarOpen]);
 
+  // ── PDF mode ───────────────────────────────────────────────────────────────
+  // Uses the backend proxy URL (/api/books/{id}/pdf) instead of the raw
+  // Cloudinary URL. The backend fetches the file server-side and returns it
+  // with Content-Disposition: inline — browser renders, never downloads.
+  if (activeReadBook?.id) {
+    const proxyUrl = getBookPdfUrl(activeReadBook.id);
+
+    return (
+      <>
+        <Head>
+          <title>{activeReadBook.title} — Reader</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <link rel="icon" href="/favicon.ico" />
+        </Head>
+
+        <div style={{ display: "flex", flexDirection: "column", height: "100vh", backgroundColor: "#f2f3f5" }}>
+
+          {/* Header */}
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 20px",
+            borderBottom: "1px solid #e2e8f0",
+            background: "#ffffff",
+            flexShrink: 0,
+          }}>
+            <div>
+              <div style={{
+                fontWeight: 700, fontSize: 15, color: "#1e293b",
+                fontFamily: "'Georgia', serif",
+              }}>
+                {activeReadBook.title}
+              </div>
+              <div style={{
+                fontSize: 12, color: "#64748b", fontStyle: "italic",
+                fontFamily: "'Georgia', serif",
+              }}>
+                {activeReadBook.author}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={handleZoomOut} style={zoomBtnStyle} title="Zoom out">A−</button>
+              <button onClick={handleZoomIn}  style={zoomBtnStyle} title="Zoom in">A+</button>
+            </div>
+          </div>
+
+          {/* PDF iframe — src points to backend proxy, always renders inline */}
+          <iframe
+            src={proxyUrl}
+            title={activeReadBook.title}
+            style={{ flex: 1, border: "none", width: "100%", display: "block" }}
+          />
+        </div>
+      </>
+    );
+  }
+
+  // ── Default chapter-based reader ───────────────────────────────────────────
   return (
     <>
       <Head>
@@ -46,7 +110,6 @@ export default function ReadPage() {
 
       <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f2f3f5" }}>
 
-        {/* Mobile backdrop */}
         {sidebarOpen && (
           <div
             className="fixed inset-0 z-30 lg:hidden"
@@ -55,7 +118,6 @@ export default function ReadPage() {
           />
         )}
 
-        {/* Left Sidebar — desktop: static | mobile/tablet: slide-in drawer */}
         <div
           data-sidebar
           className={`
@@ -72,7 +134,6 @@ export default function ReadPage() {
           />
         </div>
 
-        {/* Main reading content */}
         <BookContent
           activeChapter={activeChapter}
           fontSize={fontSize}
@@ -81,7 +142,6 @@ export default function ReadPage() {
           onZoomOut={handleZoomOut}
         />
 
-        {/* Right toolbar — desktop only */}
         <div className="hidden lg:flex">
           <RightToolbar onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
         </div>
@@ -89,3 +149,15 @@ export default function ReadPage() {
     </>
   );
 }
+
+const zoomBtnStyle = {
+  background: "#f1f5f9",
+  border: "none",
+  borderRadius: 8,
+  padding: "6px 12px",
+  cursor: "pointer",
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#475569",
+  fontFamily: "'Georgia', serif",
+};

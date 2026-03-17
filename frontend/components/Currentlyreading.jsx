@@ -1,6 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { X, BookOpen } from "lucide-react";
+import useBookStore from "@/store/usebookstore";
 
 const books = [
   {
@@ -30,6 +32,14 @@ const books = [
 ];
 
 function BookCard({ book }) {
+  const { setActiveReadBook } = useBookStore();
+  const router = useRouter();
+
+  const handleRead = () => {
+    setActiveReadBook(book);
+    router.push("/Readpage");
+  };
+
   return (
     <div className="min-w-[200px] sm:min-w-[220px] flex-shrink-0 bg-white rounded-2xl shadow-sm overflow-hidden group hover:shadow-md transition-shadow duration-200">
       {/* Cover */}
@@ -72,7 +82,10 @@ function BookCard({ book }) {
       <div className="p-3">
         <h3 className="font-bold text-gray-800 text-sm leading-tight font-serif truncate">{book.title}</h3>
         <p className="text-xs text-gray-400 mt-0.5 truncate">{book.author}</p>
-        <button className="mt-3 w-full bg-gradient-to-r from-orange-400 to-rose-500 hover:from-orange-500 hover:to-rose-600 text-white text-xs font-bold py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 tracking-wider">
+        <button
+          onClick={handleRead}
+          className="mt-3 w-full bg-gradient-to-r from-orange-400 to-rose-500 hover:from-orange-500 hover:to-rose-600 text-white text-xs font-bold py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 tracking-wider"
+        >
           READ NOW
         </button>
       </div>

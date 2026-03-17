@@ -2,12 +2,12 @@ import axios from "axios";
 import { getToken } from "@/store/authstore";
 import useAuthStore from "@/store/authstore";
 
+const BASE_URL = process.env.NEXT_PUBLIC_BOOK_API_URL || "http://localhost:8081";
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_BOOK_API_URL || "http://localhost:8081",
+  baseURL: BASE_URL,
   timeout: 60000,
 });
-
 
 api.interceptors.request.use((config) => {
   const token = getToken();
@@ -59,6 +59,16 @@ api.interceptors.response.use(
 );
 
 // ---------------------------------------------------------------------------
+// PDF Proxy URL — GET /api/books/{id}/pdf
+// Use this as the iframe src instead of the raw Cloudinary URL.
+// The backend fetches from Cloudinary server-side and returns
+// Content-Disposition: inline so the browser renders the PDF.
+// ---------------------------------------------------------------------------
+export function getBookPdfUrl(bookId) {
+  return `${BASE_URL}/api/books/${bookId}/pdf`;
+}
+
+// ---------------------------------------------------------------------------
 // Upload Book — POST /api/books/upload
 // ---------------------------------------------------------------------------
 export async function uploadBook({ bookRequest, imageFile, pdfFile }) {
@@ -72,7 +82,6 @@ export async function uploadBook({ bookRequest, imageFile, pdfFile }) {
   formData.append("imageFile",       imageFile);
   formData.append("pdfFile",         pdfFile);
 
-  // Do NOT set Content-Type manually — browser sets it with the correct boundary
   return api.post("/api/books/upload", formData);
 }
 
@@ -94,7 +103,6 @@ export async function updateBook({ bookId, bookRequest, imageFile, pdfFile }) {
   if (imageFile) formData.append("imageFile", imageFile);
   if (pdfFile)   formData.append("pdfFile",   pdfFile);
 
-  // Do NOT set Content-Type manually
   return api.put("/api/books/" + bookId, formData);
 }
 

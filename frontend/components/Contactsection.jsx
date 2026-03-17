@@ -37,6 +37,7 @@ export default function ContactSection() {
           MESSAGE
         </label>
         <textarea
+          suppressHydrationWarning
           placeholder="How can we help?"
           rows={5}
           value={message}
@@ -52,6 +53,7 @@ export default function ContactSection() {
         />
 
         <button
+          suppressHydrationWarning
           onClick={handleSubmit}
           style={{
             background: submitted ? "#0d9488" : "#1e293b",

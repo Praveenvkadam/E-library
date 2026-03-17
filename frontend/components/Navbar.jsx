@@ -202,6 +202,7 @@ export default function Navbar({ activePage, setActivePage }) {
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
+              suppressHydrationWarning
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search titles, authors…"
@@ -261,6 +262,7 @@ export default function Navbar({ activePage, setActivePage }) {
             </div>
           ) : (
             <button
+              suppressHydrationWarning
               onClick={() => router.push("/login")}
               style={{
                 display: "flex", alignItems: "center", gap: 7,
@@ -392,6 +394,7 @@ export default function Navbar({ activePage, setActivePage }) {
               <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
             </svg>
             <input
+              suppressHydrationWarning
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search titles, authors…"

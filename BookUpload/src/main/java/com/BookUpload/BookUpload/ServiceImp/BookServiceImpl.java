@@ -53,7 +53,6 @@ public class BookServiceImpl implements BookService {
             book.setB_Language(bookRequest.B_Language());
 
             Book saved = bookRepo.save(book);
-
             log.info("Upload complete for book: {}", saved.getB_name());
             return CompletableFuture.completedFuture(mapToResponse(saved));
 
@@ -80,7 +79,6 @@ public class BookServiceImpl implements BookService {
             Book book = bookRepo.findById(bookId)
                     .orElseThrow(() -> new RuntimeException("Book not found: " + bookId));
 
-            // Only re-upload to Cloudinary if a new file was provided
             if (imageFile != null && !imageFile.isEmpty()) {
                 book.setB_imageUrl(uploadToCloudinary(imageFile, "books/images", "image"));
             }
@@ -96,7 +94,6 @@ public class BookServiceImpl implements BookService {
             book.setB_Language(bookRequest.B_Language());
 
             Book updated = bookRepo.save(book);
-
             log.info("Update complete for bookId: {}", bookId);
             return CompletableFuture.completedFuture(mapToResponse(updated));
 
@@ -115,10 +112,17 @@ public class BookServiceImpl implements BookService {
     public BookResponce BookDelete(Long bookId) {
         Book book = bookRepo.findById(bookId)
                 .orElseThrow(() -> new RuntimeException("Book not found: " + bookId));
-
         bookRepo.delete(book);
         log.info("Deleted bookId: {}", bookId);
         return mapToResponse(book);
+    }
+
+    // =========================================================================
+    // FIND BY ID — used by PDF proxy endpoint
+    // =========================================================================
+    @Override
+    public Book findById(Long bookId) {
+        return bookRepo.findById(bookId).orElse(null);
     }
 
     // =========================================================================
@@ -157,6 +161,8 @@ public class BookServiceImpl implements BookService {
                 )
         );
         return (String) result.get("secure_url");
+        // Note: Content-Disposition is now handled by the /api/books/{id}/pdf
+        // proxy endpoint — no need to modify the Cloudinary URL here.
     }
 
     private BookResponce mapToResponse(Book book) {

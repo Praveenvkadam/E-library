@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import useBookStore from "@/store/usebookstore";
 
 const COVER_COLORS = [
@@ -68,7 +69,6 @@ function Book3D({ book, hovered }) {
               }}
             />
           ) : (
-            /* Fallback illustrated cover */
             <div
               style={{
                 width: "100%",
@@ -175,7 +175,6 @@ function Book3D({ book, hovered }) {
             borderRadius: "0 3px 3px 0",
           }}
         >
-          {/* Page lines */}
           {Array.from({ length: 10 }).map((_, i) => (
             <div
               key={i}
@@ -210,7 +209,7 @@ function Book3D({ book, hovered }) {
 }
 
 /* ─── BookCard ─────────────────────────────────────────────────────────────── */
-export function BookCard({ book, onBorrow }) {
+export function BookCard({ book, onRead }) {
   const [hovered, setHovered] = useState(false);
   const [btnHovered, setBtnHovered] = useState(false);
 
@@ -242,7 +241,6 @@ export function BookCard({ book, onBorrow }) {
           justifyContent: "center",
         }}
       >
-        {/* Subtle shelf line */}
         <div
           style={{
             position: "absolute",
@@ -300,7 +298,7 @@ export function BookCard({ book, onBorrow }) {
         <button
           onMouseEnter={() => setBtnHovered(true)}
           onMouseLeave={() => setBtnHovered(false)}
-          onClick={() => onBorrow?.(book)}
+          onClick={() => onRead?.(book)}
           style={{
             width: "100%",
             background: btnHovered
@@ -344,121 +342,22 @@ export function BookCard({ book, onBorrow }) {
   );
 }
 
-/* ─── PDF Modal ────────────────────────────────────────────────────────────── */
-function PdfModal({ book, onClose }) {
-  if (!book) return null;
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        background: "rgba(0,0,0,0.65)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        backdropFilter: "blur(4px)",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: "#fff",
-          borderRadius: 18,
-          width: "min(90vw, 900px)",
-          height: "85vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          boxShadow: "0 24px 60px rgba(0,0,0,0.3)",
-        }}
-      >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "14px 20px",
-            borderBottom: "1px solid #f1f5f9",
-          }}
-        >
-          <div>
-            <div
-              style={{
-                fontWeight: 700,
-                fontSize: 15,
-                color: "#1e293b",
-                fontFamily: "'Georgia', serif",
-              }}
-            >
-              {book.title}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                color: "#64748b",
-                fontStyle: "italic",
-                fontFamily: "'Georgia', serif",
-              }}
-            >
-              {book.author}
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            style={{
-              background: "#f1f5f9",
-              border: "none",
-              borderRadius: 8,
-              padding: "6px 14px",
-              cursor: "pointer",
-              fontSize: 13,
-              color: "#475569",
-              fontFamily: "'Georgia', serif",
-            }}
-          >
-            Close
-          </button>
-        </div>
-
-        {book.pdfUrl ? (
-          <iframe
-            src={book.pdfUrl}
-            title={book.title}
-            style={{ flex: 1, border: "none" }}
-          />
-        ) : (
-          <div
-            style={{
-              flex: 1,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#94a3b8",
-              fontSize: 15,
-              fontFamily: "'Georgia', serif",
-            }}
-          >
-            No PDF available for this book.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* ─── Default export ───────────────────────────────────────────────────────── */
+/* ─── BookCards (default export) ───────────────────────────────────────────── */
 export default function BookCards() {
-  const { books, isLoadingList, error } = useBookStore();
-  const [activeBook, setActiveBook] = useState(null);
+  const { books, isLoadingList, error, setActiveReadBook } = useBookStore();
+  const router = useRouter();
 
-  const cardBooks = books.map((b, i) => ({
-    id: b.b_id,
-    title: b.b_name || "Untitled",
-    author: b.b_author || "Unknown",
-    genre: b.b_category || "General",
-    pdfUrl: b.b_pdfUrl,
+  const handleRead = (book) => {
+    setActiveReadBook(book);
+    router.push("/Readpage");
+  };
+
+  const cardBooks = books.map((b) => ({
+    id:       b.b_id,
+    title:    b.b_name     || "Untitled",
+    author:   b.b_author   || "Unknown",
+    genre:    b.b_category || "General",
+    pdfUrl:   b.b_pdfUrl,
     imageUrl: b.b_imageUrl,
   }));
 
@@ -505,23 +404,20 @@ export default function BookCards() {
     );
 
   return (
-    <>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-          gap: 28,
-        }}
-      >
-        {cardBooks.map((book) => (
-          <BookCard
-            key={book.id}
-            book={book}
-            onBorrow={() => setActiveBook(book)}
-          />
-        ))}
-      </div>
-      <PdfModal book={activeBook} onClose={() => setActiveBook(null)} />
-    </>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
+        gap: 28,
+      }}
+    >
+      {cardBooks.map((book) => (
+        <BookCard
+          key={book.id}
+          book={book}
+          onRead={handleRead}
+        />
+      ))}
+    </div>
   );
 }

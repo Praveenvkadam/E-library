@@ -78,6 +78,7 @@ export default function Footer() {
             </p>
             <div style={{ display:"flex" }}>
               <input
+                suppressHydrationWarning
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -87,7 +88,7 @@ export default function Footer() {
                   color:"white", fontSize:13, outline:"none",
                   fontFamily:"'Inter', sans-serif" }}
               />
-              <button style={{ background:"linear-gradient(135deg, #0d9488, #0891b2)",
+              <button suppressHydrationWarning style={{ background:"linear-gradient(135deg, #0d9488, #0891b2)",
                 border:"none", borderRadius:"0 8px 8px 0",
                 padding:"10px 16px", cursor:"pointer", color:"white", fontSize:14 }}>
                 →
