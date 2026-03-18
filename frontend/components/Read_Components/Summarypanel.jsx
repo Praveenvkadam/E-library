@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { X, Sparkles, RefreshCw, CheckCircle, AlertCircle } from "lucide-react";
+import useAIServiceStore from "@/store/useaiservicestore";
 
-/** Pill badge for each key point */
 function KeyPoint({ text, index }) {
   return (
     <li className="flex items-start gap-3">
-      <span
-        className="flex-shrink-0 mt-0.5 flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold"
-        style={{ backgroundColor: "#0d7373" }}
-      >
+      <span className="flex-shrink-0 mt-0.5 flex items-center justify-center w-5 h-5 rounded-full text-white text-[10px] font-bold"
+        style={{ backgroundColor: "#0d7373" }}>
         {index + 1}
       </span>
       <span className="text-sm leading-relaxed" style={{ color: "#4a5568", fontFamily: "'DM Sans', sans-serif" }}>
@@ -18,30 +16,28 @@ function KeyPoint({ text, index }) {
   );
 }
 
-/** Skeleton shimmer while loading */
 function Skeleton({ lines = 4 }) {
   return (
     <div className="space-y-3 animate-pulse">
       {Array.from({ length: lines }).map((_, i) => (
-        <div
-          key={i}
-          className="h-3 rounded"
-          style={{ backgroundColor: "#e4e8ed", width: i === lines - 1 ? "60%" : "100%" }}
-        />
+        <div key={i} className="h-3 rounded"
+          style={{ backgroundColor: "#e4e8ed", width: i === lines - 1 ? "60%" : "100%" }} />
       ))}
     </div>
   );
 }
 
 export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitle, pdfUrl }) {
-  const [status, setStatus]       = useState("idle"); // idle | loading | success | error
-  const [summary, setSummary]     = useState("");
+  // ── USE STORE INSTEAD OF RAW FETCH ──────────────────────────────────────
+  const { summarizePdfFromUrl, summarizeText } = useAIServiceStore();
+
+  const [status,    setStatus]    = useState("idle");
+  const [summary,   setSummary]   = useState("");
   const [keyPoints, setKeyPoints] = useState([]);
-  const [errorMsg, setErrorMsg]   = useState("");
+  const [errorMsg,  setErrorMsg]  = useState("");
   const panelRef                  = useRef(null);
   const prevChapterTitle          = useRef(null);
 
-  // Auto-fetch whenever the panel opens for a new chapter
   useEffect(() => {
     if (!isOpen) return;
     if (prevChapterTitle.current === chapterTitle && status === "success") return;
@@ -50,7 +46,6 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
   }, [isOpen, chapterTitle]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fetchSummary = async () => {
-    // Validate inputs depending on mode
     if (!pdfUrl && (!chapterText || chapterText.trim().length < 100)) {
       setStatus("error");
       setErrorMsg("Not enough text in this chapter to summarize.");
@@ -62,25 +57,13 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
     setKeyPoints([]);
 
     try {
-      // PDF mode → URL endpoint; Chapter mode → text endpoint
-      const [endpoint, body] = pdfUrl
-        ? ["/api/ai/summary/url",  JSON.stringify({ url: pdfUrl })]
-        : ["/api/ai/summary/text", JSON.stringify({ text: chapterText })];
+      // ── Calls NEXT_PUBLIC_AI_SERVICE_API_URL/ai/summary/... ─────────────
+      const data = pdfUrl
+        ? await summarizePdfFromUrl(pdfUrl)
+        : await summarizeText(chapterText);
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body,
-      });
-
-      if (!res.ok) throw new Error(`Server returned ${res.status}`);
-
-      const json = await res.json();
-
-      if (!json.success) throw new Error(json.message || "Summary generation failed.");
-
-      setSummary(json.data.summary);
-      setKeyPoints(json.data.keyPoints ?? []);
+      setSummary(data.summary);
+      setKeyPoints(data.keyPoints ?? []);
       setStatus("success");
     } catch (err) {
       setErrorMsg(err.message || "Something went wrong.");
@@ -88,7 +71,6 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
     }
   };
 
-  // Trap focus & close on Escape
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e) => { if (e.key === "Escape") onClose(); };
@@ -98,76 +80,50 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
 
   return (
     <>
-      {/* Backdrop (mobile / narrow screens) */}
       {isOpen && (
-        <div
-          className="fixed inset-0 z-40 lg:hidden"
+        <div className="fixed inset-0 z-40 lg:hidden"
           style={{ backgroundColor: "rgba(13,27,42,0.3)", backdropFilter: "blur(2px)" }}
-          onClick={onClose}
-        />
+          onClick={onClose} />
       )}
 
-      {/* Panel */}
-      <aside
-        ref={panelRef}
-        role="complementary"
-        aria-label="AI Summary"
-        className="fixed right-0 top-0 z-50 h-full flex flex-col shadow-2xl"
+      <aside ref={panelRef} role="complementary" aria-label="AI Summary"
+        className="fixed right-0 z-50 flex flex-col shadow-2xl"
         style={{
-          width: "340px",
-          backgroundColor: "#ffffff",
-          borderLeft: "1px solid #e4e8ed",
+          top: "64px", height: "calc(100vh - 64px)", width: "340px",
+          backgroundColor: "#ffffff", borderLeft: "1px solid #e4e8ed",
           transform: isOpen ? "translateX(0)" : "translateX(100%)",
           transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-          // On desktop sit alongside the layout; on mobile float over it
-        }}
-      >
-        {/* ── Header ── */}
-        <div
-          className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
-          style={{ borderColor: "#e4e8ed" }}
-        >
+        }}>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b flex-shrink-0"
+          style={{ borderColor: "#e4e8ed" }}>
           <div className="flex items-center gap-2">
-            <span
-              className="flex items-center justify-center w-7 h-7 rounded-lg"
-              style={{ backgroundColor: "#edf7f7" }}
-            >
+            <span className="flex items-center justify-center w-7 h-7 rounded-lg" style={{ backgroundColor: "#edf7f7" }}>
               <Sparkles size={14} style={{ color: "#0d7373" }} strokeWidth={2} />
             </span>
-            <span
-              className="font-semibold text-sm"
-              style={{ color: "#0d1b2a", fontFamily: "'DM Sans', sans-serif" }}
-            >
+            <span className="font-semibold text-sm" style={{ color: "#0d1b2a", fontFamily: "'DM Sans', sans-serif" }}>
               AI Summary
             </span>
           </div>
-
           <div className="flex items-center gap-1">
-            {/* Refresh */}
-            <button
-              suppressHydrationWarning
-              onClick={fetchSummary}
-              disabled={status === "loading"}
+            <button suppressHydrationWarning onClick={fetchSummary} disabled={status === "loading"}
               aria-label="Regenerate summary"
               className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors disabled:opacity-40"
-              style={{ color: "#5a6474" }}
-            >
+              style={{ color: "#5a6474" }}>
               <RefreshCw size={15} strokeWidth={2} className={status === "loading" ? "animate-spin" : ""} />
             </button>
-            {/* Close */}
-            <button
-              suppressHydrationWarning
-              onClick={onClose}
-              aria-label="Close summary panel"
-              className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-gray-100 transition-colors"
-              style={{ color: "#5a6474" }}
-            >
-              <X size={15} strokeWidth={2} />
+            <button suppressHydrationWarning onClick={onClose} aria-label="Close summary panel"
+              className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-200"
+              style={{ color: "#ffffff", backgroundColor: "#0d7373", boxShadow: "0 2px 6px rgba(13,115,115,0.3)" }}
+              onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = "#0a5c5c"; e.currentTarget.style.transform = "scale(1.1)"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "#0d7373"; e.currentTarget.style.transform = "scale(1)"; }}>
+              <X size={16} strokeWidth={2.5} />
             </button>
           </div>
         </div>
 
-        {/* ── Chapter label ── */}
+        {/* Chapter label */}
         {chapterTitle && (
           <div className="px-5 py-3 border-b flex-shrink-0" style={{ borderColor: "#f0f3f6", backgroundColor: "#fafbfc" }}>
             <p className="text-xs font-semibold truncate" style={{ color: "#9aa3ad", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>
@@ -179,10 +135,8 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
           </div>
         )}
 
-        {/* ── Body ── */}
+        {/* Body */}
         <div className="flex-1 overflow-y-auto px-5 py-5 space-y-6">
-
-          {/* Loading */}
           {status === "loading" && (
             <div className="space-y-6">
               <div>
@@ -196,12 +150,9 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
             </div>
           )}
 
-          {/* Error */}
           {status === "error" && (
-            <div
-              className="flex items-start gap-3 rounded-xl p-4"
-              style={{ backgroundColor: "#fff5f5", border: "1px solid #fed7d7" }}
-            >
+            <div className="flex items-start gap-3 rounded-xl p-4"
+              style={{ backgroundColor: "#fff5f5", border: "1px solid #fed7d7" }}>
               <AlertCircle size={16} className="flex-shrink-0 mt-0.5" style={{ color: "#e53e3e" }} />
               <div>
                 <p className="text-sm font-semibold" style={{ color: "#c53030", fontFamily: "'DM Sans', sans-serif" }}>
@@ -210,53 +161,35 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
                 <p className="text-xs mt-1" style={{ color: "#e53e3e", fontFamily: "'DM Sans', sans-serif" }}>
                   {errorMsg}
                 </p>
-                <button
-                  suppressHydrationWarning
-                  onClick={fetchSummary}
-                  className="mt-3 text-xs font-semibold underline"
-                  style={{ color: "#c53030" }}
-                >
+                <button suppressHydrationWarning onClick={fetchSummary}
+                  className="mt-3 text-xs font-semibold underline" style={{ color: "#c53030" }}>
                   Try again
                 </button>
               </div>
             </div>
           )}
 
-          {/* Success */}
           {status === "success" && (
             <>
-              {/* Summary prose */}
               <div>
                 <p className="text-xs font-semibold mb-3" style={{ color: "#9aa3ad", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>
                   SUMMARY
                 </p>
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: "#2d3748", fontFamily: "'Lora', serif", lineHeight: "1.8" }}
-                >
+                <p className="text-sm leading-relaxed" style={{ color: "#2d3748", fontFamily: "'Lora', serif", lineHeight: "1.8" }}>
                   {summary}
                 </p>
               </div>
-
-              {/* Key points */}
               {keyPoints.length > 0 && (
                 <div>
                   <p className="text-xs font-semibold mb-3" style={{ color: "#9aa3ad", letterSpacing: "0.1em", fontFamily: "'DM Sans', sans-serif" }}>
                     KEY POINTS
                   </p>
                   <ul className="space-y-3">
-                    {keyPoints.map((point, i) => (
-                      <KeyPoint key={i} text={point} index={i} />
-                    ))}
+                    {keyPoints.map((point, i) => <KeyPoint key={i} text={point} index={i} />)}
                   </ul>
                 </div>
               )}
-
-              {/* Footer badge */}
-              <div
-                className="flex items-center gap-2 rounded-lg px-3 py-2"
-                style={{ backgroundColor: "#edf7f7" }}
-              >
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ backgroundColor: "#edf7f7" }}>
                 <CheckCircle size={13} style={{ color: "#0d7373" }} />
                 <span className="text-xs" style={{ color: "#0d7373", fontFamily: "'DM Sans', sans-serif" }}>
                   Generated by AI · May contain inaccuracies
@@ -265,7 +198,6 @@ export default function SummaryPanel({ isOpen, onClose, chapterText, chapterTitl
             </>
           )}
 
-          {/* Idle (shouldn't normally be visible) */}
           {status === "idle" && (
             <p className="text-sm text-center" style={{ color: "#9aa3ad", fontFamily: "'DM Sans', sans-serif" }}>
               Opening panel…

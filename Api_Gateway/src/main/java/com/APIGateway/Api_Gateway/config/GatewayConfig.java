@@ -5,11 +5,13 @@ import com.APIGateway.Api_Gateway.filter.RoleFilter;
 import com.APIGateway.Api_Gateway.resolver.IpKeyResolver;
 import com.APIGateway.Api_Gateway.resolver.UserKeyResolver;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.filter.ratelimit.RedisRateLimiter;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 import java.util.List;
 
@@ -20,6 +22,10 @@ public class GatewayConfig {
     private final RoleFilter roleFilter;
     private final UserKeyResolver userKeyResolver;
     private final IpKeyResolver ipKeyResolver;
+
+    // FIX 2 — Externalized AI service URL (set in application.yml)
+    @Value("${ai_service.url}")
+    private String aiServiceUrl;
 
     public GatewayConfig(
             AuthFilter authFilter,
@@ -33,12 +39,33 @@ public class GatewayConfig {
     }
 
     @Bean
+    @Primary
     public RedisRateLimiter redisRateLimiter() {
         return new RedisRateLimiter(20, 40);
     }
 
     @Bean
-    public RouteLocator routes(RouteLocatorBuilder builder) {
+    public RedisRateLimiter aiAnalysisRateLimiter() {
+        return new RedisRateLimiter(10, 20);
+    }
+
+    @Bean
+    public RedisRateLimiter aiTtsRateLimiter() {
+        return new RedisRateLimiter(5, 10);
+    }
+
+    @Bean
+    public RedisRateLimiter aiSummaryRateLimiter() {
+        return new RedisRateLimiter(3, 6);
+    }
+
+    @Bean
+    public RouteLocator routes(RouteLocatorBuilder builder,
+                               // FIX 3 — Inject beans instead of calling methods directly
+                               RedisRateLimiter redisRateLimiter,
+                               RedisRateLimiter aiAnalysisRateLimiter,
+                               RedisRateLimiter aiTtsRateLimiter,
+                               RedisRateLimiter aiSummaryRateLimiter) {
         return builder.routes()
 
                 // ================================================
@@ -63,7 +90,7 @@ public class GatewayConfig {
                         .filters(f -> f
                                 .filter(authFilter.apply(new AuthFilter.Config()))
                                 .requestRateLimiter(config -> config
-                                        .setRateLimiter(redisRateLimiter())
+                                        .setRateLimiter(redisRateLimiter)
                                         .setKeyResolver(userKeyResolver)
                                 )
                         )
@@ -86,7 +113,7 @@ public class GatewayConfig {
                                         new RoleFilter.Config(List.of("ROLE_ADMIN"))
                                 ))
                                 .requestRateLimiter(config -> config
-                                        .setRateLimiter(redisRateLimiter())
+                                        .setRateLimiter(redisRateLimiter)
                                         .setKeyResolver(userKeyResolver)
                                 )
                         )
@@ -95,16 +122,16 @@ public class GatewayConfig {
 
                 // ================================================
                 // ROUTE 4 — Books Public (JWT only)
+                // FIX 4 — Use /** to cover /api/books/{id} and other read endpoints.
+                //          Admin-only routes (upload/update/delete) declared above
+                //          take priority due to route ordering.
                 // ================================================
                 .route("book-public-routes", r -> r
-                        .path(
-                                "/api/books",
-                                "/api/books/search"
-                        )
+                        .path("/api/books/**", "/api/books")
                         .filters(f -> f
                                 .filter(authFilter.apply(new AuthFilter.Config()))
                                 .requestRateLimiter(config -> config
-                                        .setRateLimiter(redisRateLimiter())
+                                        .setRateLimiter(redisRateLimiter)
                                         .setKeyResolver(userKeyResolver)
                                 )
                         )
@@ -112,9 +139,7 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ✅ ROUTE 5 — Subscription Public (No JWT)
-                // Covers: initiate order, verify payment (Razorpay callback)
-                // ⚠️ Must be BEFORE subscription-protected route
+                // ROUTE 5 — Subscription Public (No JWT)
                 // ================================================
                 .route("subscription-public", r -> r
                         .path(
@@ -125,19 +150,89 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ✅ ROUTE 6 — Subscription Protected (JWT + Rate Limit)
-                // Covers: get subscription status, cancel, etc.
+                // ROUTE 6 — Subscription Protected (JWT + Rate Limit)
                 // ================================================
                 .route("subscription-protected", r -> r
                         .path("/api/v1/subscriptions/**")
                         .filters(f -> f
                                 .filter(authFilter.apply(new AuthFilter.Config()))
                                 .requestRateLimiter(config -> config
-                                        .setRateLimiter(redisRateLimiter())
+                                        .setRateLimiter(redisRateLimiter)
                                         .setKeyResolver(userKeyResolver)
                                 )
                         )
                         .uri("lb://SUBSCRIPTION-SERVICE")
+                )
+
+                // ================================================
+                // ROUTE 7 — AI Health Check (Public - No JWT)
+                // ================================================
+                .route("ai-health", r -> r
+                        .path("/api/ai/health")
+                        .filters(f -> f
+                                .rewritePath("/api/ai/(?<segment>.*)", "/ai/${segment}")
+                        )
+                        // FIX 2 — Use injected property instead of hardcoded localhost
+                        .uri(aiServiceUrl)
+                )
+
+                // ================================================
+                // ROUTE 8 — AI TTS Languages (Public - No JWT)
+                // ================================================
+                .route("ai-tts-languages", r -> r
+                        .path("/api/ai/tts/languages")
+                        .filters(f -> f
+                                .rewritePath("/api/ai/(?<segment>.*)", "/ai/${segment}")
+                        )
+                        .uri(aiServiceUrl)
+                )
+
+                // ================================================
+                // ROUTE 9 — AI Analysis (Protected)
+                // ⚠️ Must be BEFORE ai-tts route
+                // FIX 1 — authFilter runs BEFORE rewritePath so it sees the original path
+                // ================================================
+                .route("ai-analysis", r -> r
+                        .path("/api/ai/analysis/**")
+                        .filters(f -> f
+                                .filter(authFilter.apply(new AuthFilter.Config()))
+                                .rewritePath("/api/ai/(?<segment>.*)", "/ai/${segment}")
+                                .requestRateLimiter(config -> config
+                                        .setRateLimiter(aiAnalysisRateLimiter)
+                                        .setKeyResolver(userKeyResolver)
+                                )
+                        )
+                        .uri(aiServiceUrl)
+                )
+
+                // ================================================
+                // ROUTE 10 — AI TTS (Protected)
+                // FIX 1 — authFilter runs BEFORE rewritePath
+                // ================================================
+                .route("ai-tts", r -> r
+                        .path("/api/ai/tts/**")
+                        .filters(f -> f
+                                .filter(authFilter.apply(new AuthFilter.Config()))
+                                .rewritePath("/api/ai/(?<segment>.*)", "/ai/${segment}")
+                                .requestRateLimiter(config -> config
+                                        .setRateLimiter(aiTtsRateLimiter)
+                                        .setKeyResolver(userKeyResolver)
+                                )
+                        )
+                        .uri(aiServiceUrl)
+                )
+
+                .route("ai-summary", r -> r
+                        .path("/api/ai/summary/**")
+                        .filters(f -> f
+                                .filter(authFilter.apply(new AuthFilter.Config()))
+                                .rewritePath("/api/ai/(?<segment>.*)", "/ai/${segment}")
+                                .requestRateLimiter(config -> config
+                                        .setRateLimiter(aiSummaryRateLimiter)
+                                        .setKeyResolver(userKeyResolver)
+                                )
+                        )
+                        .uri(aiServiceUrl)
                 )
 
                 .build();

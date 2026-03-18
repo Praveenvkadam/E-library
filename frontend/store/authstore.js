@@ -133,29 +133,20 @@ const useAuthStore = create(
         _token = null;
 
         if (typeof window !== "undefined") {
-          // ✅ Clear the JWT from localStorage
+         
           localStorage.removeItem("auth-token");
-
-          // ❌ REMOVED: localStorage.removeItem("auth-user")
-          // Manually removing "auth-user" caused a race condition —
-          // Zustand's persist middleware re-writes it immediately after.
-          // set({ user: null }) below is enough; Zustand persist will
-          // automatically sync the cleared user state to localStorage.
         }
 
-        // ✅ Clear user from store — Zustand persist handles localStorage sync
         set({ user: null, error: null });
       },
     }),
     {
-      name: "auth-user", // localStorage key for persisted state
+      name: "auth-user", 
       storage: createJSONStorage(() => localStorage),
 
-      // ✅ Only persist the user object, not loading/error state
       partialize: (state) => ({ user: state.user }),
 
-      // ✅ On page reload, rehydrate _token from localStorage
-      // so isAuthenticated() returns true for returning users
+ 
       onRehydrateStorage: () => (state) => {
         if (state && typeof window !== "undefined") {
           _token = localStorage.getItem("auth-token");

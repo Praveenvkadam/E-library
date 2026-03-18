@@ -1,9 +1,6 @@
-/**
- * pdfExtractService.js
- * Extracts and cleans text content from uploaded PDF files.
- */
 
-const pdfParse = require("pdf-parse");
+
+const pdfParse = require("pdf-parse/lib/pdf-parse.js"); 
 const fs = require("fs");
 
 /**
@@ -30,11 +27,11 @@ const extractTextFromBuffer = async (buffer) => {
     text: cleanedText,
     pages: data.numpages,
     metadata: {
-      title: data.info?.Title || null,
-      author: data.info?.Author || null,
-      subject: data.info?.Subject || null,
-      creator: data.info?.Creator || null,
-      wordCount: cleanedText.split(/\s+/).length,
+      title:     data.info?.Title   || null,
+      author:    data.info?.Author  || null,
+      subject:   data.info?.Subject || null,
+      creator:   data.info?.Creator || null,
+      wordCount: cleanedText.split(/\s+/).filter(Boolean).length,
       charCount: cleanedText.length,
     },
   };
@@ -48,11 +45,11 @@ const extractTextFromBuffer = async (buffer) => {
  */
 const cleanExtractedText = (rawText) => {
   return rawText
-    .replace(/\r\n/g, "\n")                          // normalize line endings
-    .replace(/([a-z])-\n([a-z])/g, "$1$2")           // fix hyphenated words
-    .replace(/\n{3,}/g, "\n\n")                       // collapse multiple blank lines
-    .replace(/[ \t]{2,}/g, " ")                       // collapse multiple spaces
-    .replace(/^\s*\d+\s*$/gm, "")                     // remove standalone page numbers
+    .replace(/\r\n/g, "\n")                     // normalize line endings
+    .replace(/([a-z])-\n([a-z])/g, "$1$2")      // fix hyphenated words
+    .replace(/\n{3,}/g, "\n\n")                  // collapse multiple blank lines
+    .replace(/[ \t]{2,}/g, " ")                  // collapse multiple spaces
+    .replace(/^\s*\d+\s*$/gm, "")               // remove standalone page numbers
     .trim();
 };
 

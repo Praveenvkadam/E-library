@@ -1,19 +1,10 @@
-/**
- * ttsController.js
- * Handles HTTP requests for Sarvam.ai Bulbul v3 TTS.
- */
-
 const fs = require("fs");
 const path = require("path");
 const { generateSpeech, SARVAM_VOICES } = require("../service/ttsService");
 const { getSupportedLanguages } = require("../utils/languageDetect");
 const { extractTextFromUrl } = require("../service/pdfExtractService"); // ← NEW
 
-/**
- * POST /ai/tts/generate
- * Generate and stream WAV audio using Sarvam Bulbul v3.
- * Body: { text, speaker?, pitch?, pace?, targetLanguage? }
- */
+
 const generateSpeechHandler = async (req, res, next) => {
   try {
     const { text, speaker, pitch, pace, targetLanguage } = req.body;
@@ -38,11 +29,7 @@ const generateSpeechHandler = async (req, res, next) => {
   }
 };
 
-/**
- * POST /ai/tts/generate-url
- * Generate audio and return a temporary download URL.
- * Body: { text, speaker?, pitch?, pace?, targetLanguage? }
- */
+
 const generateSpeechUrlHandler = async (req, res, next) => {
   try {
     const { text, speaker, pitch, pace, targetLanguage } = req.body;
@@ -70,10 +57,7 @@ const generateSpeechUrlHandler = async (req, res, next) => {
   }
 };
 
-/**
- * GET /ai/tts/download/:fileName
- * Download a previously generated audio file.
- */
+
 const downloadAudioHandler = async (req, res, next) => {
   try {
     const { fileName } = req.params;
@@ -92,10 +76,7 @@ const downloadAudioHandler = async (req, res, next) => {
   }
 };
 
-/**
- * GET /ai/tts/languages
- * List all Sarvam-supported TTS languages and available voices.
- */
+
 const getSupportedLanguagesHandler = (req, res) => {
   const languages = getSupportedLanguages();
   return res.status(200).json({
@@ -112,12 +93,7 @@ const getSupportedLanguagesHandler = (req, res) => {
   });
 };
 
-/**
- * POST /ai/tts/extract-pdf-text          ← NEW
- * Extract plain text from a remote PDF URL so the client can pass it to TTS.
- * Body: { url: string }
- * Returns: { success, data: { text, wordCount, pages } }
- */
+
 const extractPdfTextHandler = async (req, res, next) => {
   try {
     const { url } = req.body;

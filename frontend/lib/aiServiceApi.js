@@ -1,45 +1,56 @@
+import axios from "axios";
+import { getToken } from "@/store/authstore";
+import useAuthStore from "@/store/authstore";
+
+const BASE = `${process.env.NEXT_PUBLIC_AI_SERVICE_API_URL}/api/ai`;
+
+// ─── Axios instance ───────────────────────────────────────────────────────────
+
+const aiApi = axios.create({ baseURL: BASE });
 
 
-const BASE = `${process.env.NEXT_PUBLIC_AI_SERVICE_API_URL}/ai`;
+aiApi.interceptors.request.use((config) => {
+  const token = getToken() || localStorage.getItem("auth-token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
 
-// ─── Auth / Header helpers ────────────────────────────────────────────────────
+  const user = useAuthStore.getState()?.user;
+  if (user) {
+    config.headers["X-User-Id"]    = String(user.id    ?? "");
+    config.headers["X-User-Email"] = String(user.email ?? "");
+    config.headers["X-User-Name"]  = String(user.name  ?? user.username ?? "");
+    config.headers["X-User-Roles"] = user.role ? "ROLE_" + user.role : "";
+  }
 
-const authHeader = () => {
-  const token = localStorage.getItem("token");
-  return token ? { Authorization: `Bearer ${token}` } : {};
-};
-
-const jsonHeaders = () => ({
-  "Content-Type": "application/json",
-  ...authHeader(),
+  return config;
 });
 
-/**
- * Shared JSON fetch — throws on !ok or !json.success.
- */
-const apiFetch = async (url, options = {}) => {
-  const res = await fetch(url, options);
-  const json = await res.json();
-  if (!res.ok || !json.success)
-    throw new Error(json.message || `Request failed (${res.status})`);
-  return json.data;
-};
+// Unwrap { success, data } or throw a readable error
+aiApi.interceptors.response.use(
+  (response) => {
+    const json = response.data;
+    if (!json.success) throw new Error(json.message || "Request failed");
+    return json.data;
+  },
+  (error) => {
+    const msg =
+      error.response?.data?.message ||
+      error.response?.data?.error ||
+      `Request failed (${error.response?.status ?? "network error"})`;
+    return Promise.reject(new Error(msg));
+  }
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ANALYSIS  /ai/analysis/*
+// ANALYSIS  /analysis/*
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * POST /ai/analysis/sentiment
  * @param {string} text
- * @returns {{ text: string, sentiment: string, confidenceScore: number }}
+ * @returns {{ text, sentiment, confidenceScore }}
  */
 export const apiAnalyzeSentiment = (text) =>
-  apiFetch(`${BASE}/analysis/sentiment`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ text }),
-  });
+  aiApi.post("/analysis/sentiment", { text });
 
 /**
  * POST /ai/analysis/genres
@@ -47,23 +58,15 @@ export const apiAnalyzeSentiment = (text) =>
  * @returns {{ genres: string[], count: number }}
  */
 export const apiExtractGenres = (description) =>
-  apiFetch(`${BASE}/analysis/genres`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ description }),
-  });
+  aiApi.post("/analysis/genres", { description });
 
 /**
  * POST /ai/analysis/interaction
- * @param {{ bookId: string, title: string, description: string, genres?: string[], rating?: number }} bookData
+ * @param {{ bookId, title, description, genres?, rating? }} bookData
  * @returns {{ userId, topGenres, totalBooksAnalyzed, overallSentimentScore, latestInteraction }}
  */
 export const apiRecordInteraction = (bookData) =>
-  apiFetch(`${BASE}/analysis/interaction`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify(bookData),
-  });
+  aiApi.post("/analysis/interaction", bookData);
 
 /**
  * POST /ai/analysis/recommend
@@ -71,29 +74,23 @@ export const apiRecordInteraction = (bookData) =>
  * @returns {{ recommendations: object[], basedOn?: object }}
  */
 export const apiGetRecommendations = (books) =>
-  apiFetch(`${BASE}/analysis/recommend`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ books }),
-  });
+  aiApi.post("/analysis/recommend", { books });
 
 /**
  * GET /ai/analysis/profile
  * @returns {{ userId, topGenres, genreScores, overallSentimentScore, totalBooksAnalyzed, recentInteractions, updatedAt }}
  */
 export const apiGetUserProfile = () =>
-  apiFetch(`${BASE}/analysis/profile`, {
-    headers: authHeader(),
-  });
+  aiApi.get("/analysis/profile");
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SUMMARY  /ai/summary/*
+// SUMMARY  /summary/*
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * POST /ai/summary/upload  (multipart/form-data)
- * @param {File}    file
- * @param {string}  [bookId]
+ * @param {File}   file
+ * @param {string} [bookId]
  * @returns {{ summary, keyPoints, metadata, performance }}
  */
 export const apiSummarizeUploadedPdf = (file, bookId) => {
@@ -101,10 +98,8 @@ export const apiSummarizeUploadedPdf = (file, bookId) => {
   formData.append("file", file);
   if (bookId) formData.append("bookId", bookId);
 
-  return apiFetch(`${BASE}/summary/upload`, {
-    method: "POST",
-    headers: authHeader(),        // browser sets multipart boundary automatically
-    body: formData,
+  return aiApi.post("/summary/upload", formData, {
+    headers: { "Content-Type": "multipart/form-data" },
   });
 };
 
@@ -115,11 +110,7 @@ export const apiSummarizeUploadedPdf = (file, bookId) => {
  * @returns {{ summary, keyPoints, sourceUrl, metadata, performance }}
  */
 export const apiSummarizePdfFromUrl = (url, bookId) =>
-  apiFetch(`${BASE}/summary/url`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ url, ...(bookId && { bookId }) }),
-  });
+  aiApi.post("/summary/url", { url, ...(bookId && { bookId }) });
 
 /**
  * POST /ai/summary/text
@@ -128,14 +119,10 @@ export const apiSummarizePdfFromUrl = (url, bookId) =>
  * @returns {{ summary, keyPoints, metadata, performance }}
  */
 export const apiSummarizeText = (text, bookId) =>
-  apiFetch(`${BASE}/summary/text`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ text, ...(bookId && { bookId }) }),
-  });
+  aiApi.post("/summary/text", { text, ...(bookId && { bookId }) });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TTS  /ai/tts/*
+// TTS  /tts/*
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -148,19 +135,21 @@ export const apiSummarizeText = (text, bookId) =>
  * @returns {Promise<string>} blob URL
  */
 export const apiGenerateSpeech = async (text, options = {}) => {
-  const res = await fetch(`${BASE}/tts/generate`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ text, ...options }),
-  });
+  const token = getToken() || localStorage.getItem("auth-token");
 
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json.message || `TTS request failed (${res.status})`);
-  }
+  const response = await axios.post(
+    `${BASE}/tts/generate`,
+    { text, ...options },
+    {
+      responseType: "blob",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    }
+  );
 
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  return URL.createObjectURL(response.data);
 };
 
 /**
@@ -170,11 +159,7 @@ export const apiGenerateSpeech = async (text, options = {}) => {
  * @returns {{ downloadUrl, format, expiresInMinutes, detectedLanguage, languageUsed, speaker, model }}
  */
 export const apiGenerateSpeechUrl = (text, options = {}) =>
-  apiFetch(`${BASE}/tts/generate-url`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ text, ...options }),
-  });
+  aiApi.post("/tts/generate-url", { text, ...options });
 
 /**
  * GET /ai/tts/download/:fileName
@@ -184,17 +169,19 @@ export const apiGenerateSpeechUrl = (text, options = {}) =>
  * @returns {Promise<string>} blob URL
  */
 export const apiDownloadAudio = async (fileName) => {
-  const res = await fetch(`${BASE}/tts/download/${encodeURIComponent(fileName)}`, {
-    headers: authHeader(),
-  });
+  const token = getToken() || localStorage.getItem("auth-token");
 
-  if (!res.ok) {
-    const json = await res.json().catch(() => ({}));
-    throw new Error(json.message || `Download failed (${res.status})`);
-  }
+  const response = await axios.get(
+    `${BASE}/tts/download/${encodeURIComponent(fileName)}`,
+    {
+      responseType: "blob",
+      headers: {
+        ...(token && { Authorization: `Bearer ${token}` }),
+      },
+    }
+  );
 
-  const blob = await res.blob();
-  return URL.createObjectURL(blob);
+  return URL.createObjectURL(response.data);
 };
 
 /**
@@ -202,18 +189,12 @@ export const apiDownloadAudio = async (fileName) => {
  * @returns {{ languages: Array<{ code, name, availableVoices }>, count, model, provider }}
  */
 export const apiGetSupportedLanguages = () =>
-  apiFetch(`${BASE}/tts/languages`, {
-    headers: authHeader(),
-  });
+  aiApi.get("/tts/languages");
 
 /**
  * POST /ai/tts/extract-pdf-text
- * @param {string} url - Remote PDF URL
- * @returns {{ text: string, wordCount: number, pages: number }}
+ * @param {string} url  Remote PDF URL
+ * @returns {{ text, wordCount, pages }}
  */
 export const apiExtractPdfText = (url) =>
-  apiFetch(`${BASE}/tts/extract-pdf-text`, {
-    method: "POST",
-    headers: jsonHeaders(),
-    body: JSON.stringify({ url }),
-  });
+  aiApi.post("/tts/extract-pdf-text", { url });

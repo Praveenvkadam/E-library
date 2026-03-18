@@ -12,7 +12,7 @@ const {
   generateSpeechUrlHandler,
   downloadAudioHandler,
   getSupportedLanguagesHandler,
-  extractPdfTextHandler,           // ← NEW
+  extractPdfTextHandler,          
 } = require("../controller/ttsController");
 
 // Public route — no auth needed to list languages

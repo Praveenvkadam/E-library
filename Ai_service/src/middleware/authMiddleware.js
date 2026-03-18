@@ -1,9 +1,3 @@
-/**
- * authMiddleware.js
- * Validates JWT tokens issued by the Authentication microservice.
- * Attaches decoded user payload to req.user.
- */
-
 const jwt = require("jsonwebtoken");
 
 const authMiddleware = (req, res, next) => {
@@ -19,8 +13,11 @@ const authMiddleware = (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded; // { userId, email, roles, iat, exp }
+    const decoded = jwt.verify(
+      token,
+      Buffer.from(process.env.JWT_SECRET, "base64")
+    );
+    req.user = decoded;
     next();
   } catch (err) {
     const message =
@@ -31,10 +28,6 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-/**
- * Role-based access guard.
- * Usage: router.delete('/...', authMiddleware, requireRole('ADMIN'), handler)
- */
 const requireRole = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {

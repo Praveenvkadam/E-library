@@ -23,7 +23,6 @@ import java.util.List;
 @Component
 public class RateLimitFilter implements GlobalFilter, Ordered {
 
-    // ✅ Declared ONCE here
     private final ReactiveStringRedisTemplate redisTemplate;
 
     private static final int MAX_REQUESTS    = 20;
@@ -31,9 +30,8 @@ public class RateLimitFilter implements GlobalFilter, Ordered {
 
     private static final List<String> OPEN_PATHS = List.of("/api/auth/");
 
-    // ✅ Constructor uses different parameter name to avoid conflict
     public RateLimitFilter(ReactiveStringRedisTemplate stringRedisTemplate) {
-        this.redisTemplate = stringRedisTemplate;  // ✅ Assign here
+        this.redisTemplate = stringRedisTemplate;
     }
 
     @Override
