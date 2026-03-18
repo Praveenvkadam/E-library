@@ -1,11 +1,3 @@
-/**
- * sarvamClient.js
- * Central Axios client for all Sarvam.ai API calls.
- * Handles auth headers, base URL, and error normalization.
- *
- * Sarvam API Base: https://api.sarvam.ai
- * Auth: api-subscription-key header
- */
 
 const axios = require("axios");
 
@@ -54,7 +46,7 @@ sarvamClient.interceptors.response.use(
  * Sarvam API Endpoints reference
  */
 const ENDPOINTS = {
-  CHAT:             "/chat/completions",
+  CHAT:             "/v1/chat/completions",
   TRANSLATE:        "/translate",
   TTS:              "/text-to-speech",
   STT:              "/speech-to-text",
@@ -62,5 +54,5 @@ const ENDPOINTS = {
   TRANSLITERATE:    "/transliterate",
   DETECT_LANGUAGE:  "/text-language-detection",
 };
-
+  
 module.exports = { sarvamClient, ENDPOINTS };

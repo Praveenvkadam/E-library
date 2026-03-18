@@ -1,72 +1,57 @@
 /**
- * summaryCache.js
- * Caches AI-generated summaries to avoid re-processing the same PDF.
- * Key: SHA-256 hash of the PDF content.
+ * chunkText.js
+ * Splits large text into overlapping chunks for AI summarization.
  */
-
-const mongoose = require("mongoose");
-const crypto = require("crypto");
-
-const summaryCacheSchema = new mongoose.Schema(
-  {
-    // SHA-256 hash of the original PDF text content
-    contentHash: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-    },
-
-    bookId: {
-      type: String,
-      index: true,
-    },
-
-    originalTextLength: {
-      type: Number,
-    },
-
-    summary: {
-      type: String,
-      required: true,
-    },
-
-    keyPoints: [{ type: String }],
-
-    detectedLanguage: {
-      type: String,
-      default: "eng",
-    },
-
-    model: {
-      type: String,
-      default: "Xenova/bart-large-cnn",
-    },
-
-    processingTimeMs: {
-      type: Number,
-    },
-
-    // Auto-expire cached summaries after 30 days
-    expiresAt: {
-      type: Date,
-      default: () => new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      index: { expireAfterSeconds: 0 },
-    },
-  },
-  {
-    timestamps: true,
-    collection: "summary_cache",
-  }
-);
 
 /**
- * Generate SHA-256 hash for cache key.
- * @param {string} text
- * @returns {string}
+ * Split text into chunks of a given size with optional overlap.
+ * Tries to split on sentence boundaries to preserve context.
+ *
+ * @param {string} text          - The full text to chunk
+ * @param {number} chunkSize     - Max characters per chunk (default: 2500)
+ * @param {number} overlapSize   - Characters of overlap between chunks (default: 150)
+ * @returns {string[]}           - Array of text chunks
  */
-summaryCacheSchema.statics.hashContent = (text) => {
-  return crypto.createHash("sha256").update(text).digest("hex");
+const chunkText = (text, chunkSize = 2500, overlapSize = 150) => {
+  if (!text || text.trim().length === 0) return [];
+
+  // If text fits in one chunk, return as-is
+  if (text.length <= chunkSize) return [text.trim()];
+
+  const chunks = [];
+  let start = 0;
+
+  while (start < text.length) {
+    let end = start + chunkSize;
+
+    // Don't exceed text length
+    if (end >= text.length) {
+      chunks.push(text.slice(start).trim());
+      break;
+    }
+
+    // Try to break on a sentence boundary (. ! ?) within last 200 chars of chunk
+    const slice = text.slice(start, end);
+    const sentenceEnd = slice.search(/[.!?][^.!?]*$/);
+
+    if (sentenceEnd > chunkSize - 200) {
+      // Found a good sentence boundary near the end
+      end = start + sentenceEnd + 1;
+    } else {
+      // Fall back to word boundary
+      const lastSpace = slice.lastIndexOf(" ");
+      if (lastSpace > chunkSize - 200) {
+        end = start + lastSpace;
+      }
+    }
+
+    chunks.push(text.slice(start, end).trim());
+
+    // Move forward with overlap so context isn't lost between chunks
+    start = end - overlapSize;
+  }
+
+  return chunks.filter((c) => c.length > 0);
 };
 
-module.exports = mongoose.model("SummaryCache", summaryCacheSchema);
+module.exports = { chunkText };

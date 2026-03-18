@@ -1,10 +1,3 @@
-/**
- * summaryService.js
- * AI-powered PDF summarization using Sarvam.ai Chat Completion (Sarvam-M).
- * Supports Indian language summaries via built-in multilingual model.
- * API: POST https://api.sarvam.ai/chat/completions
- */
-
 const { sarvamClient, ENDPOINTS } = require("../utils/sarvamClient");
 const { chunkText } = require("../utils/chunkText");
 const SummaryCache = require("../models/summaryCache");
