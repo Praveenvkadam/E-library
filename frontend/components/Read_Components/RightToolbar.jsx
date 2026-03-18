@@ -24,6 +24,7 @@ export default function RightToolbar({ onZoomIn, onZoomOut }) {
         const color = tool.accent ? tool.accent : isActive ? "#ffffff" : "#8a9bb0";
         return (
           <button
+            suppressHydrationWarning
             key={idx}
             onClick={() => { setActiveIdx(idx); tool.onClick?.(); }}
             aria-label={tool.label}

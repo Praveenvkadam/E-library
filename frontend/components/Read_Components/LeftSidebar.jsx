@@ -31,6 +31,7 @@ export default function LeftSidebar({ onChapterSelect, activeChapter, onClose })
         <div className="flex items-center gap-3 mb-4">
           {/* Close button — mobile only */}
           <button
+            suppressHydrationWarning
             onClick={onClose}
             className="lg:hidden flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-800"
             aria-label="Close sidebar"
@@ -39,6 +40,7 @@ export default function LeftSidebar({ onChapterSelect, activeChapter, onClose })
           </button>
           {/* Back arrow — desktop only */}
           <button
+            suppressHydrationWarning
             className="hidden lg:flex items-center justify-center w-8 h-8 rounded-full hover:bg-gray-100 transition-colors text-gray-500 hover:text-gray-800"
             aria-label="Go back"
           >
@@ -125,6 +127,7 @@ export default function LeftSidebar({ onChapterSelect, activeChapter, onClose })
             const isActive = ch.id === (activeChapter || 3);
             return (
               <button
+                suppressHydrationWarning
                 key={ch.id}
                 onClick={() => onChapterSelect && onChapterSelect(ch.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-150 ${
@@ -177,6 +180,7 @@ export default function LeftSidebar({ onChapterSelect, activeChapter, onClose })
 function ToolbarBtn({ icon, label, active, onClick }) {
   return (
     <button
+      suppressHydrationWarning
       onClick={onClick}
       aria-label={label}
       className={`has-tooltip relative flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-150 ${

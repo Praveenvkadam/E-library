@@ -27,7 +27,10 @@ public class SecurityConfig {
                         s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
                 .headers(headers -> headers
-                        .frameOptions(frame -> frame.sameOrigin())
+                        // FIX: was frame.sameOrigin() — that blocks the iframe because
+                        // localhost:3000 (frontend) != localhost:8081 (backend), so the
+                        // browser treats them as different origins and refuses to render.
+                        .frameOptions(frame -> frame.disable())
                 )
 
                 .authorizeHttpRequests(auth -> auth

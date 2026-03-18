@@ -54,7 +54,7 @@ export default function ReadPage() {
           <link rel="icon" href="/favicon.ico" />
         </Head>
 
-        <div style={{ display: "flex", flexDirection: "column", height: "100vh", backgroundColor: "#f2f3f5" }}>
+        <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 64px)", backgroundColor: "#f2f3f5" }}>
 
           {/* Header */}
           <div style={{
@@ -108,7 +108,7 @@ export default function ReadPage() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      <div className="flex h-screen overflow-hidden" style={{ backgroundColor: "#f2f3f5" }}>
+      <div className="flex overflow-hidden" style={{ backgroundColor: "#f2f3f5", height: "calc(100vh - 64px)" }}>
 
         {sidebarOpen && (
           <div
