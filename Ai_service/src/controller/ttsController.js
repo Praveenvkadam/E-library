@@ -2,7 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { generateSpeech, SARVAM_VOICES } = require("../service/ttsService");
 const { getSupportedLanguages } = require("../utils/languageDetect");
-const { extractTextFromUrl } = require("../service/pdfExtractService"); // ← NEW
+const { extractTextFromUrl } = require("../service/pdfExtractService");
 
 
 const generateSpeechHandler = async (req, res, next) => {
@@ -101,7 +101,10 @@ const extractPdfTextHandler = async (req, res, next) => {
     if (!url || !url.startsWith("http"))
       return res.status(400).json({ success: false, message: "Valid PDF URL is required." });
 
-    const extracted = await extractTextFromUrl(url);
+    // ✅ Extract JWT from incoming request and forward to Book Service
+    const authToken = req.headers["authorization"]?.replace("Bearer ", "").trim();
+
+    const extracted = await extractTextFromUrl(url, authToken); // ✅ token forwarded
 
     if (!extracted.text || extracted.text.length < 50)
       return res.status(422).json({
@@ -127,5 +130,5 @@ module.exports = {
   generateSpeechUrlHandler,
   downloadAudioHandler,
   getSupportedLanguagesHandler,
-  extractPdfTextHandler,           // ← NEW export
+  extractPdfTextHandler,
 };

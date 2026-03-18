@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken } from "@/store/authstore";
 import useAuthStore from "@/store/authstore";
 
-const BASE = `${process.env.NEXT_PUBLIC_AI_SERVICE_API_URL}/api/ai`;
+const BASE = `${process.env.NEXT_PUBLIC_SERVICE_API_URL}/api/ai`;
 
 // ─── Axios instance ───────────────────────────────────────────────────────────
 

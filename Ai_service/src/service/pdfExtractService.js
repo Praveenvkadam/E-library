@@ -1,12 +1,8 @@
-
-
-const pdfParse = require("pdf-parse/lib/pdf-parse.js"); 
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 const fs = require("fs");
 
 /**
  * Extract text from a PDF file path.
- * @param {string} filePath - Absolute path to the PDF file
- * @returns {Promise<{ text: string, pages: number, metadata: object }>}
  */
 const extractTextFromFile = async (filePath) => {
   const dataBuffer = fs.readFileSync(filePath);
@@ -14,13 +10,10 @@ const extractTextFromFile = async (filePath) => {
 };
 
 /**
- * Extract text from a PDF buffer (for URL-downloaded PDFs).
- * @param {Buffer} buffer
- * @returns {Promise<{ text: string, pages: number, metadata: object }>}
+ * Extract text from a PDF buffer.
  */
 const extractTextFromBuffer = async (buffer) => {
   const data = await pdfParse(buffer);
-
   const cleanedText = cleanExtractedText(data.text);
 
   return {
@@ -38,31 +31,33 @@ const extractTextFromBuffer = async (buffer) => {
 };
 
 /**
- * Clean raw PDF-extracted text — remove extra whitespace, fix hyphenation,
- * remove page headers/footers noise.
- * @param {string} rawText
- * @returns {string}
+ * Clean raw PDF-extracted text.
  */
 const cleanExtractedText = (rawText) => {
   return rawText
-    .replace(/\r\n/g, "\n")                     // normalize line endings
-    .replace(/([a-z])-\n([a-z])/g, "$1$2")      // fix hyphenated words
-    .replace(/\n{3,}/g, "\n\n")                  // collapse multiple blank lines
-    .replace(/[ \t]{2,}/g, " ")                  // collapse multiple spaces
-    .replace(/^\s*\d+\s*$/gm, "")               // remove standalone page numbers
+    .replace(/\r\n/g, "\n")
+    .replace(/([a-z])-\n([a-z])/g, "$1$2")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/^\s*\d+\s*$/gm, "")
     .trim();
 };
 
 /**
  * Download and extract text from a remote PDF URL.
  * @param {string} url
- * @returns {Promise<{ text: string, pages: number, metadata: object }>}
+ * @param {string} [authToken] — JWT forwarded from the incoming request
  */
-const extractTextFromUrl = async (url) => {
+const extractTextFromUrl = async (url, authToken) => {
   const axios = require("axios");
+
   const response = await axios.get(url, {
     responseType: "arraybuffer",
     timeout: 30000,
+    headers: {
+      // ✅ Forward JWT so the gateway allows the request
+      ...(authToken && { Authorization: `Bearer ${authToken}` }),
+    },
   });
 
   const buffer = Buffer.from(response.data);

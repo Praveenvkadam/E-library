@@ -44,7 +44,9 @@ Key highlights:
 ### 📖 Core Features
 - **Book Catalog & Upload** — Upload, browse, search, and filter books by category
 - **Book Reader** — In-app reading experience with reading history tracking
-- **User Profiles** — Comprehensive user profile management with preferences
+- **User Profiles** — Comprehensive user profile management with preferences, bookmarks, wishlist, and reading history
+- **Reading Progress** — Track reading progress with bookmarks, wishlist, and history
+- **Subscription Management** — Manage subscription plans with Razorpay payment integration
 
 ### 🤖 AI-Powered Features
 - **Book Summarization** — AI-generated summaries using LangChain & Gemini
@@ -104,7 +106,7 @@ Key highlights:
 
 | Component | Technology |
 |---|---|
-| **Framework** | Spring Boot 3.2.5 / 3.3.5 / 4.0.3 |
+| **Framework** | Spring Boot 3.2.5 / 3.3.5 / 3.4.1 / 4.0.3 |
 | **API Gateway** | Spring Cloud Gateway (Reactive / WebFlux) |
 | **Service Discovery** | Netflix Eureka Server & Client |
 | **Messaging** | Apache Kafka |
@@ -126,8 +128,8 @@ Key highlights:
 
 | Component | Technology |
 |---|---|
-| **Runtime** | Node.js with Express 5 |
-| **AI/LLM** | LangChain · Google Gemini |
+| **Runtime** | Node.js with Express 5.2.1 |
+| **AI/LLM** | LangChain 1.2.29 · Google Gemini |
 | **TTS** | Sarvam API |
 | **ML Models** | Xenova/Transformers |
 | **Database** | MongoDB (Mongoose) |
@@ -161,7 +163,7 @@ E-library/
 │   └── src/main/java/...
 ├── BookUpload/                 # Book management — CRUD, Cloudinary upload, Kafka events
 │   └── src/main/java/...
-├── UserProfile/                # User profiles — preferences, OpenFeign, Kafka events
+├── UserProfile/                # User profiles — preferences, bookmarks, wishlist, reading history
 │   └── src/main/java/...
 ├── subscriptionpayment/        # Razorpay payments — subscriptions, plans, webhooks
 │   └── src/main/java/...
@@ -194,9 +196,15 @@ E-library/
 │   │   ├── Navbar.jsx          # Navigation bar
 │   │   ├── Uploadsection.jsx   # Book upload form
 │   │   ├── Userprofile.jsx     # User profile display
+│   │   ├── Read_Components/    # Book reader components
+│   │   │   ├── BookContent.jsx    # Main book content display
+│   │   │   ├── LeftSidebar.jsx     # Reader navigation sidebar
+│   │   │   ├── RightToolbar.jsx    # Reader toolbar
+│   │   │   ├── Summarypanel.jsx    # AI summary panel
+│   │   │   └── Ttsplayer.jsx       # Text-to-speech player
 │   │   └── ui/                 # shadcn/ui primitives
-│   ├── store/                  # Zustand stores (authstore, usebookstore)
-│   ├── lib/                    # API clients (authapi, bookapi)
+│   ├── store/                  # Zustand stores (authstore, usebookstore, useaiservicestore)
+│   ├── lib/                    # API clients (authapi, bookapi, aiServiceApi)
 │   └── package.json
 └── README.md
 ```
@@ -398,6 +406,14 @@ All requests go through the **API Gateway**. Swagger UI is available on services
 | `GET` | `/profile` | Get authenticated user's profile |
 | `PUT` | `/profile` | Update user profile |
 | `GET` | `/profile/preferences` | Get reading preferences |
+| `GET` | `/profile/bookmarks` | Get user bookmarks |
+| `POST` | `/profile/bookmarks` | Add bookmark |
+| `DELETE` | `/profile/bookmarks/:id` | Delete bookmark |
+| `GET` | `/profile/wishlist` | Get user wishlist |
+| `POST` | `/profile/wishlist` | Add to wishlist |
+| `DELETE` | `/profile/wishlist/:id` | Remove from wishlist |
+| `GET` | `/profile/history` | Get reading history |
+| `POST` | `/profile/history` | Add to reading history |
 
 ### Subscriptions & Payments
 
@@ -415,6 +431,8 @@ All requests go through the **API Gateway**. Swagger UI is available on services
 | `POST` | `/ai/summary` | Generate AI book summary |
 | `POST` | `/ai/analysis` | Analyze book content |
 | `POST` | `/ai/tts` | Convert text to speech |
+
+> 📖 For detailed AI service API documentation, see [`Ai_service/API_ENDPOINTS.md`](Ai_service/API_ENDPOINTS.md)
 
 ## 🤝 Contributing
 

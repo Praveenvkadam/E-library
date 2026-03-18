@@ -2,7 +2,7 @@ import axios from "axios";
 import { getToken } from "@/store/authstore";
 import useAuthStore from "@/store/authstore";
 
-const BASE_URL = process.env.NEXT_PUBLIC_BOOK_API_URL || "http://localhost:8081";
+const BASE_URL = process.env.NEXT_PUBLIC_SERVICE_API_URL ;
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -27,9 +27,7 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ---------------------------------------------------------------------------
-// Response interceptor — surface real Spring Boot error message
-// ---------------------------------------------------------------------------
+
 api.interceptors.response.use(
   (response) => response.data,
 
@@ -49,7 +47,7 @@ api.interceptors.response.use(
     } else if (error.request) {
       const url = (error.config?.baseURL || "") + (error.config?.url || "");
       return Promise.reject(new Error(
-        "No response from server. URL: " + url + " — check Spring Boot is running on port 8081"
+        "No response from server. URL: " + url + " — check Spring Boot is running "
       ));
 
     } else {
@@ -58,19 +56,12 @@ api.interceptors.response.use(
   }
 );
 
-// ---------------------------------------------------------------------------
-// PDF Proxy URL — GET /api/books/{id}/pdf
-// Use this as the iframe src instead of the raw Cloudinary URL.
-// The backend fetches from Cloudinary server-side and returns
-// Content-Disposition: inline so the browser renders the PDF.
-// ---------------------------------------------------------------------------
+
 export function getBookPdfUrl(bookId) {
   return `${BASE_URL}/api/books/${bookId}/pdf`;
 }
 
-// ---------------------------------------------------------------------------
-// Upload Book — POST /api/books/upload
-// ---------------------------------------------------------------------------
+
 export async function uploadBook({ bookRequest, imageFile, pdfFile }) {
   const formData = new FormData();
   formData.append("bookName",        bookRequest.B_name);

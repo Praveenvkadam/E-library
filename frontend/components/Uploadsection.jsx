@@ -664,7 +664,7 @@ export default function UploadSection({ setActivePage }) {
                   )
                 }
                 <div style={{ position: "absolute", bottom: 14, left: "50%", transform: "translateX(-50%)" }}>
-                  <button onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); }}
+                  <button suppressHydrationWarning onClick={(e) => { e.stopPropagation(); coverInputRef.current?.click(); }}
                     style={{ background: "#0d9488", color: "#fff", border: "none", borderRadius: 20,
                       padding: "6px 18px", fontSize: 12, fontWeight: 600, cursor: "pointer",
                       whiteSpace: "nowrap", boxShadow: "0 2px 8px rgba(13,148,136,.35)", fontFamily: "sans-serif" }}>
@@ -703,7 +703,7 @@ export default function UploadSection({ setActivePage }) {
                         </>
                     }
                   </div>
-                  <button onClick={() => pdfInputRef.current?.click()}
+                  <button suppressHydrationWarning onClick={() => pdfInputRef.current?.click()}
                     style={{ border: "1.5px solid #e2e8f0", borderRadius: 8, background: "#fff",
                       color: "#475569", padding: "5px 14px", fontSize: 12, fontWeight: 600,
                       cursor: "pointer", flexShrink: 0, fontFamily: "sans-serif" }}>
@@ -718,20 +718,20 @@ export default function UploadSection({ setActivePage }) {
               <div>
                 <p style={labelStyle}>Details</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <input placeholder="Book Title" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
-                  <input placeholder="Author Name" value={author} onChange={(e) => setAuthor(e.target.value)} style={inputStyle} />
-                  <textarea placeholder="Book Description" value={description}
+                  <input suppressHydrationWarning placeholder="Book Title" value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} />
+                  <input suppressHydrationWarning placeholder="Author Name" value={author} onChange={(e) => setAuthor(e.target.value)} style={inputStyle} />
+                  <textarea suppressHydrationWarning placeholder="Book Description" value={description}
                     onChange={(e) => setDescription(e.target.value)} rows={3}
                     style={{ ...inputStyle, resize: "vertical", lineHeight: 1.6 }} />
-                  <select value={category} onChange={(e) => setCategory(e.target.value)}
+                  <select suppressHydrationWarning value={category} onChange={(e) => setCategory(e.target.value)}
                     style={{ ...inputStyle, cursor: "pointer" }}>
                     <option value="" disabled>Select Category</option>
                     {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                   <div style={{ display: "flex", gap: 10 }}>
-                    <input type="date" value={pubDate} onChange={(e) => setPubDate(e.target.value)}
+                    <input suppressHydrationWarning type="date" value={pubDate} onChange={(e) => setPubDate(e.target.value)}
                       style={{ ...inputStyle, flex: 1 }} />
-                    <select value={language} onChange={(e) => setLanguage(e.target.value)}
+                    <select suppressHydrationWarning value={language} onChange={(e) => setLanguage(e.target.value)}
                       style={{ ...inputStyle, flex: 1, cursor: "pointer" }}>
                       <option value="" disabled>Language</option>
                       {LANGUAGES.map(({ value, label }) => <option key={value} value={value}>{label}</option>)}
@@ -753,7 +753,7 @@ export default function UploadSection({ setActivePage }) {
               </svg>
               All fields are required before publishing.
             </p>
-            <button disabled={!allFilled || isUploading} onClick={handleSubmit}
+            <button suppressHydrationWarning disabled={!allFilled || isUploading} onClick={handleSubmit}
               style={{ display: "flex", alignItems: "center", gap: 8,
                 background: allFilled && !isUploading ? "#f97316" : "#fdba74",
                 color: "#fff", border: "none", borderRadius: 12,
@@ -784,7 +784,7 @@ export default function UploadSection({ setActivePage }) {
             padding: 20, boxShadow: "0 1px 8px rgba(0,0,0,.06)" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <h2 style={{ fontSize: 13, fontWeight: 700, color: "#1e293b" }}>Recently Uploaded</h2>
-              <button onClick={() => setActivePage && setActivePage("Catalog")}
+              <button suppressHydrationWarning onClick={() => setActivePage && setActivePage("Catalog")}
                 style={{ fontSize: 12, fontWeight: 600, color: "#0d9488", background: "none",
                   border: "none", cursor: "pointer", fontFamily: "sans-serif" }}>
                 View All

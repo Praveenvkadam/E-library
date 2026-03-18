@@ -1,6 +1,7 @@
 package com.APIGateway.Api_Gateway.filter;
 
 import com.APIGateway.Api_Gateway.utils.JwtUtil;
+import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
@@ -16,6 +17,7 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Date;
 import java.util.List;
 
 @Slf4j
@@ -70,29 +72,29 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             String token = authHeader.substring(7);
 
-
-            if (!jwtUtil.isTokenValid(token)) {
-                log.warn("Invalid or expired token for path: {}", path);
+            // Step 4 — Parse and validate token in ONE call
+            Claims claims;
+            try {
+                claims = jwtUtil.extractAllClaims(token);
+                if (claims.getExpiration().before(new Date())) {
+                    log.warn("Expired token for path: {}", path);
+                    return onError(exchange, "Token is invalid or expired", HttpStatus.UNAUTHORIZED);
+                }
+            } catch (Exception e) {
+                log.warn("Token parsing failed for path: {} | reason: {}", path, e.getMessage());
                 return onError(exchange, "Token is invalid or expired", HttpStatus.UNAUTHORIZED);
             }
 
-            // Step 5 — Extract user details from token
-            String userId      = jwtUtil.extractUserId(token);
-            String email       = jwtUtil.extractEmail(token);
-            String name        = jwtUtil.extractName(token);
-            List<String> roles = jwtUtil.extractRoles(token);
+            // Step 5 — Extract user details from already-parsed claims (no re-parse)
+            String userId      = jwtUtil.extractUserId(claims);
+            String email       = jwtUtil.extractEmail(claims);
+            String name        = jwtUtil.extractName(claims);
+            List<String> roles = jwtUtil.extractRoles(claims);
             String rolesValue  = (roles != null) ? String.join(",", roles) : "";
 
             log.debug("Authenticated user — id: {}, email: {}, roles: {}", userId, email, roles);
 
             // Step 6 — Inject user headers via ServerHttpRequestDecorator
-            //
-            // WHY NOT request.mutate().header(...):
-            // Spring Web 6.1.x stores incoming Netty headers as ReadOnlyHttpHeaders.
-            // Every path through the mutate() builder — .header(), .headers(consumer),
-            // .clear(), .remove() — eventually writes into that read-only map and throws
-            // UnsupportedOperationException. The only safe approach is to wrap the
-            // request in a decorator and override getHeaders() with a fresh mutable copy.
             final String finalRolesValue = rolesValue;
             ServerHttpRequest mutatedRequest = new ServerHttpRequestDecorator(request) {
                 @Override

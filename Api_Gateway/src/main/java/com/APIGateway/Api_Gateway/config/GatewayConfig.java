@@ -12,6 +12,7 @@ import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.http.HttpMethod;
 
 import java.util.List;
 
@@ -23,9 +24,11 @@ public class GatewayConfig {
     private final UserKeyResolver userKeyResolver;
     private final IpKeyResolver ipKeyResolver;
 
-    // FIX 2 — Externalized AI service URL (set in application.yml)
     @Value("${ai_service.url}")
     private String aiServiceUrl;
+
+    @Value("${book_service.url}")
+    private String bookServiceUrl;
 
     public GatewayConfig(
             AuthFilter authFilter,
@@ -61,11 +64,10 @@ public class GatewayConfig {
 
     @Bean
     public RouteLocator routes(RouteLocatorBuilder builder,
-                               // FIX 3 — Inject beans instead of calling methods directly
-                               RedisRateLimiter redisRateLimiter,
-                               RedisRateLimiter aiAnalysisRateLimiter,
-                               RedisRateLimiter aiTtsRateLimiter,
-                               RedisRateLimiter aiSummaryRateLimiter) {
+                               @Qualifier("redisRateLimiter")      RedisRateLimiter redisRateLimiter,
+                               @Qualifier("aiAnalysisRateLimiter") RedisRateLimiter aiAnalysisRateLimiter,
+                               @Qualifier("aiTtsRateLimiter")      RedisRateLimiter aiTtsRateLimiter,
+                               @Qualifier("aiSummaryRateLimiter")  RedisRateLimiter aiSummaryRateLimiter) {
         return builder.routes()
 
                 // ================================================
@@ -99,47 +101,71 @@ public class GatewayConfig {
 
                 // ================================================
                 // ROUTE 3 — Books ADMIN Only (JWT + ROLE_ADMIN)
-                // ⚠️ Must be BEFORE book-public route
+                // POST (upload), PUT (update), DELETE — admin only
+                // ⚠️ Must be BEFORE book-public routes
                 // ================================================
                 .route("book-admin-routes", r -> r
-                        .path(
-                                "/api/books/upload",
-                                "/api/books/update/**",
-                                "/api/books/delete/**"
-                        )
+                        .path("/api/books/upload", "/api/books/**")
+                        .and()
+                        .method(HttpMethod.POST, HttpMethod.PUT, HttpMethod.DELETE)
                         .filters(f -> f
                                 .filter(authFilter.apply(new AuthFilter.Config()))
                                 .filter(roleFilter.apply(
-                                        new RoleFilter.Config(List.of("ROLE_ADMIN"))
+                                        new RoleFilter.Config(List.of("ADMIN"))
                                 ))
+                                // ✅ Remove X-Frame-Options so admin UI iframes work
+                                .removeResponseHeader("X-Frame-Options")
                                 .requestRateLimiter(config -> config
                                         .setRateLimiter(redisRateLimiter)
                                         .setKeyResolver(userKeyResolver)
                                 )
                         )
-                        .uri("lb://BOOKUPLOAD")
+                        .uri(bookServiceUrl)
                 )
 
                 // ================================================
-                // ROUTE 4 — Books Public (JWT only)
-                // FIX 4 — Use /** to cover /api/books/{id} and other read endpoints.
-                //          Admin-only routes (upload/update/delete) declared above
-                //          take priority due to route ordering.
+                // ROUTE 4 — Book PDF Stream (JWT + dedicated route)
+                // ⚠️ Must be BEFORE book-public-routes (more specific)
+                // Needs X-Frame-Options removed for iframe rendering
+                // ================================================
+                .route("book-pdf-stream", r -> r
+                        .path("/api/books/*/pdf")
+                        .and()
+                        .method(HttpMethod.GET)
+                        .filters(f -> f
+                                .filter(authFilter.apply(new AuthFilter.Config()))
+                                // ✅ Allow PDF to render inside <iframe>
+                                .removeResponseHeader("X-Frame-Options")
+                                // ✅ Allow embedding from same origin
+                                .addResponseHeader("Content-Security-Policy", "frame-ancestors 'self'")
+                                .requestRateLimiter(config -> config
+                                        .setRateLimiter(redisRateLimiter)
+                                        .setKeyResolver(userKeyResolver)
+                                )
+                        )
+                        .uri(bookServiceUrl)
+                )
+
+                // ================================================
+                // ROUTE 5 — Books Public (GET only — JWT only)
                 // ================================================
                 .route("book-public-routes", r -> r
                         .path("/api/books/**", "/api/books")
+                        .and()
+                        .method(HttpMethod.GET)
                         .filters(f -> f
                                 .filter(authFilter.apply(new AuthFilter.Config()))
+                                .removeResponseHeader("X-Frame-Options")
                                 .requestRateLimiter(config -> config
                                         .setRateLimiter(redisRateLimiter)
                                         .setKeyResolver(userKeyResolver)
                                 )
                         )
-                        .uri("lb://BOOKUPLOAD")
+                        .uri(bookServiceUrl)
                 )
 
                 // ================================================
-                // ROUTE 5 — Subscription Public (No JWT)
+                // ROUTE 6 — Subscription Public (No JWT)
                 // ================================================
                 .route("subscription-public", r -> r
                         .path(
@@ -150,7 +176,7 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ROUTE 6 — Subscription Protected (JWT + Rate Limit)
+                // ROUTE 7 — Subscription Protected (JWT + Rate Limit)
                 // ================================================
                 .route("subscription-protected", r -> r
                         .path("/api/v1/subscriptions/**")
@@ -165,19 +191,18 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ROUTE 7 — AI Health Check (Public - No JWT)
+                // ROUTE 8 — AI Health Check (Public - No JWT)
                 // ================================================
                 .route("ai-health", r -> r
                         .path("/api/ai/health")
                         .filters(f -> f
                                 .rewritePath("/api/ai/(?<segment>.*)", "/ai/${segment}")
                         )
-                        // FIX 2 — Use injected property instead of hardcoded localhost
                         .uri(aiServiceUrl)
                 )
 
                 // ================================================
-                // ROUTE 8 — AI TTS Languages (Public - No JWT)
+                // ROUTE 9 — AI TTS Languages (Public - No JWT)
                 // ================================================
                 .route("ai-tts-languages", r -> r
                         .path("/api/ai/tts/languages")
@@ -188,9 +213,8 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ROUTE 9 — AI Analysis (Protected)
+                // ROUTE 10 — AI Analysis (Protected)
                 // ⚠️ Must be BEFORE ai-tts route
-                // FIX 1 — authFilter runs BEFORE rewritePath so it sees the original path
                 // ================================================
                 .route("ai-analysis", r -> r
                         .path("/api/ai/analysis/**")
@@ -206,8 +230,7 @@ public class GatewayConfig {
                 )
 
                 // ================================================
-                // ROUTE 10 — AI TTS (Protected)
-                // FIX 1 — authFilter runs BEFORE rewritePath
+                // ROUTE 11 — AI TTS (Protected)
                 // ================================================
                 .route("ai-tts", r -> r
                         .path("/api/ai/tts/**")
@@ -222,6 +245,9 @@ public class GatewayConfig {
                         .uri(aiServiceUrl)
                 )
 
+                // ================================================
+                // ROUTE 12 — AI Summary (Protected)
+                // ================================================
                 .route("ai-summary", r -> r
                         .path("/api/ai/summary/**")
                         .filters(f -> f

@@ -1,17 +1,9 @@
-/**
- * summaryController.js
- * Handles HTTP requests for AI-powered PDF summarization.
- */
-
 const { extractTextFromFile, extractTextFromUrl } = require("../service/pdfExtractService");
 const { summarizePdf } = require("../service/summaryService");
 const { detectLanguage } = require("../utils/languageDetect");
 
 /**
  * POST /ai/summary/upload
- * Upload a PDF file and get an AI-generated summary.
- * Form-data: file (PDF)
- * Body (optional): { bookId?: string }
  */
 const summarizeUploadedPdfHandler = async (req, res, next) => {
   try {
@@ -22,7 +14,6 @@ const summarizeUploadedPdfHandler = async (req, res, next) => {
     const { bookId } = req.body;
     const startTime = Date.now();
 
-    // Step 1: Extract text
     const extracted = await extractTextFromFile(req.file.path);
 
     if (!extracted.text || extracted.text.length < 100) {
@@ -32,28 +23,25 @@ const summarizeUploadedPdfHandler = async (req, res, next) => {
       });
     }
 
-    // Step 2: Detect language
     const detectedLanguage = detectLanguage(extracted.text.slice(0, 500));
-
-    // Step 3: Generate summary
-    const summaryResult = await summarizePdf(extracted.text, bookId, detectedLanguage.iso3);
+    const summaryResult    = await summarizePdf(extracted.text, bookId, detectedLanguage.iso3);
 
     return res.status(200).json({
       success: true,
       data: {
-        summary: summaryResult.summary,
+        summary:   summaryResult.summary,
         keyPoints: summaryResult.keyPoints,
         metadata: {
           ...extracted.metadata,
-          pages: extracted.pages,
+          pages:            extracted.pages,
           detectedLanguage: detectedLanguage.name,
-          languageCode: detectedLanguage.iso3,
+          languageCode:     detectedLanguage.iso3,
         },
         performance: {
-          fromCache: summaryResult.fromCache,
+          fromCache:        summaryResult.fromCache,
           processingTimeMs: summaryResult.processingTimeMs,
-          model: summaryResult.model,
-          totalTimeMs: Date.now() - startTime,
+          model:            summaryResult.model,
+          totalTimeMs:      Date.now() - startTime,
         },
       },
     });
@@ -64,8 +52,6 @@ const summarizeUploadedPdfHandler = async (req, res, next) => {
 
 /**
  * POST /ai/summary/url
- * Summarize a PDF from a remote URL (e.g., from BookUpload service S3 URL).
- * Body: { url: string, bookId?: string }
  */
 const summarizePdfFromUrlHandler = async (req, res, next) => {
   try {
@@ -77,7 +63,10 @@ const summarizePdfFromUrlHandler = async (req, res, next) => {
 
     const startTime = Date.now();
 
-    const extracted = await extractTextFromUrl(url);
+    // ✅ Forward JWT to Book Service so gateway allows the internal PDF fetch
+    const authToken = req.headers["authorization"]?.replace("Bearer ", "").trim();
+
+    const extracted = await extractTextFromUrl(url, authToken); // ✅ token forwarded
 
     if (!extracted.text || extracted.text.length < 100) {
       return res.status(422).json({
@@ -87,24 +76,24 @@ const summarizePdfFromUrlHandler = async (req, res, next) => {
     }
 
     const detectedLanguage = detectLanguage(extracted.text.slice(0, 500));
-    const summaryResult = await summarizePdf(extracted.text, bookId, detectedLanguage.iso3);
+    const summaryResult    = await summarizePdf(extracted.text, bookId, detectedLanguage.iso3);
 
     return res.status(200).json({
       success: true,
       data: {
-        summary: summaryResult.summary,
+        summary:   summaryResult.summary,
         keyPoints: summaryResult.keyPoints,
         sourceUrl: url,
         metadata: {
           ...extracted.metadata,
-          pages: extracted.pages,
+          pages:            extracted.pages,
           detectedLanguage: detectedLanguage.name,
         },
         performance: {
-          fromCache: summaryResult.fromCache,
+          fromCache:        summaryResult.fromCache,
           processingTimeMs: summaryResult.processingTimeMs,
-          model: summaryResult.model,
-          totalTimeMs: Date.now() - startTime,
+          model:            summaryResult.model,
+          totalTimeMs:      Date.now() - startTime,
         },
       },
     });
@@ -115,8 +104,6 @@ const summarizePdfFromUrlHandler = async (req, res, next) => {
 
 /**
  * POST /ai/summary/text
- * Summarize raw text directly (no PDF needed).
- * Body: { text: string, bookId?: string }
  */
 const summarizeTextHandler = async (req, res, next) => {
   try {
@@ -129,25 +116,25 @@ const summarizeTextHandler = async (req, res, next) => {
       });
     }
 
-    const startTime = Date.now();
+    const startTime        = Date.now();
     const detectedLanguage = detectLanguage(text.slice(0, 500));
-    const summaryResult = await summarizePdf(text, bookId, detectedLanguage.iso3);
+    const summaryResult    = await summarizePdf(text, bookId, detectedLanguage.iso3);
 
     return res.status(200).json({
       success: true,
       data: {
-        summary: summaryResult.summary,
+        summary:   summaryResult.summary,
         keyPoints: summaryResult.keyPoints,
         metadata: {
-          charCount: text.length,
-          wordCount: text.split(/\s+/).length,
+          charCount:        text.length,
+          wordCount:        text.split(/\s+/).length,
           detectedLanguage: detectedLanguage.name,
         },
         performance: {
-          fromCache: summaryResult.fromCache,
+          fromCache:        summaryResult.fromCache,
           processingTimeMs: summaryResult.processingTimeMs,
-          model: summaryResult.model,
-          totalTimeMs: Date.now() - startTime,
+          model:            summaryResult.model,
+          totalTimeMs:      Date.now() - startTime,
         },
       },
     });

@@ -1,11 +1,97 @@
-import { useEffect, useRef } from "react";
-import { Menu, ZoomIn, ZoomOut, Sun, Bookmark, MoreHorizontal } from "lucide-react";
+"use client";
 
-export default function BookContent({ chapterNum, title, content = [], page, totalPages, fontSize = 16, onMenuOpen, onZoomIn, onZoomOut }) {
-  const contentRef = useRef(null);
+import { useEffect, useRef, useState } from "react";
+import { Menu, ZoomIn, ZoomOut, Sun, Bookmark, MoreHorizontal } from "lucide-react";
+import useBookStore from "@/store/usebookstore";
+
+// ─── PDF Viewer (blob fetch — bypasses auth header limitation of iframes) ────
+function PdfViewer({ bookId, token }) {
+  const [blobUrl, setBlobUrl] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error,   setError]   = useState(null);
+  const prevBlobRef           = useRef(null);
 
   useEffect(() => {
-    if (!contentRef.current) return;
+    if (!bookId) return;
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    setBlobUrl(null);
+
+    (async () => {
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_GATEWAY_URL}/api/books/${bookId}/pdf`,
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+
+        if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+        const url = URL.createObjectURL(await res.blob()); // ✅ blob URL needs no auth
+
+        if (!cancelled) {
+          if (prevBlobRef.current) URL.revokeObjectURL(prevBlobRef.current);
+          prevBlobRef.current = url;
+          setBlobUrl(url);
+        }
+      } catch (err) {
+        if (!cancelled) setError(err.message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      if (prevBlobRef.current) {
+        URL.revokeObjectURL(prevBlobRef.current);
+        prevBlobRef.current = null;
+      }
+    };
+  }, [bookId, token]);
+
+  if (loading) return <PdfState text="Loading PDF…" />;
+  if (error)   return <PdfState text={`Failed to load PDF: ${error}`} isError />;
+
+  return (
+    <iframe
+      src={blobUrl}
+      title="Book PDF"
+      style={{ width: "100%", height: "100%", border: "none", display: "block" }}
+    />
+  );
+}
+
+function PdfState({ text, isError }) {
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      height: "100%", padding: "40px 20px", textAlign: "center",
+      color: isError ? "#e11d48" : "#94a3b8",
+      fontFamily: "'DM Sans', sans-serif", fontSize: 14,
+    }}>
+      {text}
+    </div>
+  );
+}
+
+// ─── BookContent ─────────────────────────────────────────────────────────────
+export default function BookContent({
+  chapterNum, title, content = [], page, totalPages,
+  fontSize = 16, onMenuOpen, onZoomIn, onZoomOut,
+  mode = "text",   // "text" | "pdf"
+}) {
+  const contentRef    = useRef(null);
+  const activeReadBook = useBookStore((s) => s.activeReadBook);
+
+  // ✅ Read token from wherever your auth store/cookie keeps it
+  const token = typeof window !== "undefined"
+    ? localStorage.getItem("token")
+    : null;
+
+  useEffect(() => {
+    if (mode !== "text" || !contentRef.current) return;
     contentRef.current.style.opacity = 0;
     contentRef.current.style.transform = "translateY(6px)";
     requestAnimationFrame(() => {
@@ -13,7 +99,7 @@ export default function BookContent({ chapterNum, title, content = [], page, tot
       contentRef.current.style.opacity = 1;
       contentRef.current.style.transform = "translateY(0)";
     });
-  }, [chapterNum]);
+  }, [chapterNum, mode]);
 
   return (
     <main className="flex-1 flex flex-col overflow-hidden" style={{ backgroundColor: "#f2f3f5", minWidth: 0 }}>
@@ -32,7 +118,7 @@ export default function BookContent({ chapterNum, title, content = [], page, tot
           </button>
           <div className="min-w-0 leading-tight">
             <p className="font-semibold text-sm truncate" style={{ color: "#0d1b2a", fontFamily: "'DM Sans', sans-serif" }}>
-              The Midnight Library
+              {activeReadBook?.title ?? "Book Reader"}
             </p>
             <p className="text-xs text-gray-400" style={{ fontFamily: "'DM Sans', sans-serif" }}>
               {chapterNum}
@@ -40,77 +126,86 @@ export default function BookContent({ chapterNum, title, content = [], page, tot
           </div>
         </div>
         <div className="flex items-center gap-0.5 flex-shrink-0">
-          <TopBtn onClick={onZoomOut} label="Zoom out"><ZoomOut size={17} strokeWidth={2} /></TopBtn>
-          <TopBtn onClick={onZoomIn}  label="Zoom in" ><ZoomIn  size={17} strokeWidth={2} /></TopBtn>
+          {mode === "text" && (
+            <>
+              <TopBtn onClick={onZoomOut} label="Zoom out"><ZoomOut size={17} strokeWidth={2} /></TopBtn>
+              <TopBtn onClick={onZoomIn}  label="Zoom in" ><ZoomIn  size={17} strokeWidth={2} /></TopBtn>
+            </>
+          )}
           <TopBtn label="More"><MoreHorizontal size={17} strokeWidth={2} /></TopBtn>
         </div>
       </div>
 
-      {/* Reading area */}
+      {/* ── Reading area ── */}
       <div className="flex-1 overflow-y-auto">
-        <div ref={contentRef} className="max-w-2xl mx-auto px-5 sm:px-8 md:px-10 lg:px-12 py-8 lg:py-12">
 
-          <p className="text-center text-xs font-bold mb-6" style={{ color: "#0d7373", letterSpacing: "0.2em", fontFamily: "'DM Sans', sans-serif" }}>
-            {chapterNum}
-          </p>
-
-          <Divider />
-
-          <h1
-            className="text-center font-bold leading-tight mb-10"
-            style={{ fontFamily: "'Playfair Display', serif", color: "#0d1b2a", fontSize: "clamp(1.5rem, 4vw, 2.5rem)", whiteSpace: "pre-line" }}
-          >
-            {title}
-          </h1>
-
-          <Divider />
-
-          <div className="space-y-6 mt-10">
-            {content.map((block, idx) => {
-              if (block.type === "drop-cap") return (
-                <p key={idx} style={{ fontFamily: "'Lora', serif", fontSize: `${fontSize}px`, color: "#2d3748", lineHeight: "1.85" }}>
-                  <span style={{ float: "left", fontFamily: "'Playfair Display', serif", fontSize: "4.5rem", fontWeight: 900, lineHeight: "0.82", marginRight: "0.1em", marginTop: "0.06em", color: "#0d1b2a" }}>
-                    {block.text[0].toUpperCase()}
-                  </span>
-                  {block.text.slice(1)}
-                </p>
-              );
-              if (block.type === "paragraph") return (
-                <p key={idx} style={{ fontFamily: "'Lora', serif", fontSize: `${fontSize}px`, color: "#2d3748", lineHeight: "1.85" }}>
-                  {block.text}
-                </p>
-              );
-              if (block.type === "blockquote") return (
-                <blockquote
-                  key={idx}
-                  className="my-8 px-5 py-4 sm:px-6 sm:py-5 rounded-r-lg border-l-4"
-                  style={{ borderColor: "#0d7373", backgroundColor: "#edf7f7", fontFamily: "'Lora', serif", fontStyle: "italic", fontSize: `${fontSize + 1}px`, color: "#2d3748", lineHeight: "1.75" }}
-                >
-                  {block.text}
-                </blockquote>
-              );
-              return null;
-            })}
+        {/* PDF mode — blob fetch, no auth issues */}
+        {mode === "pdf" && (
+          <div style={{ height: "100%", minHeight: "80vh" }}>
+            <PdfViewer bookId={activeReadBook?.id} token={token} />
           </div>
-        </div>
+        )}
+
+        {/* Text mode — original chapter renderer */}
+        {mode === "text" && (
+          <div ref={contentRef} className="max-w-2xl mx-auto px-5 sm:px-8 md:px-10 lg:px-12 py-8 lg:py-12">
+            <p className="text-center text-xs font-bold mb-6" style={{ color: "#0d7373", letterSpacing: "0.2em", fontFamily: "'DM Sans', sans-serif" }}>
+              {chapterNum}
+            </p>
+            <Divider />
+            <h1
+              className="text-center font-bold leading-tight mb-10"
+              style={{ fontFamily: "'Playfair Display', serif", color: "#0d1b2a", fontSize: "clamp(1.5rem, 4vw, 2.5rem)", whiteSpace: "pre-line" }}
+            >
+              {title}
+            </h1>
+            <Divider />
+            <div className="space-y-6 mt-10">
+              {content.map((block, idx) => {
+                if (block.type === "drop-cap") return (
+                  <p key={idx} style={{ fontFamily: "'Lora', serif", fontSize: `${fontSize}px`, color: "#2d3748", lineHeight: "1.85" }}>
+                    <span style={{ float: "left", fontFamily: "'Playfair Display', serif", fontSize: "4.5rem", fontWeight: 900, lineHeight: "0.82", marginRight: "0.1em", marginTop: "0.06em", color: "#0d1b2a" }}>
+                      {block.text[0].toUpperCase()}
+                    </span>
+                    {block.text.slice(1)}
+                  </p>
+                );
+                if (block.type === "paragraph") return (
+                  <p key={idx} style={{ fontFamily: "'Lora', serif", fontSize: `${fontSize}px`, color: "#2d3748", lineHeight: "1.85" }}>
+                    {block.text}
+                  </p>
+                );
+                if (block.type === "blockquote") return (
+                  <blockquote
+                    key={idx}
+                    className="my-8 px-5 py-4 sm:px-6 sm:py-5 rounded-r-lg border-l-4"
+                    style={{ borderColor: "#0d7373", backgroundColor: "#edf7f7", fontFamily: "'Lora', serif", fontStyle: "italic", fontSize: `${fontSize + 1}px`, color: "#2d3748", lineHeight: "1.75" }}
+                  >
+                    {block.text}
+                  </blockquote>
+                );
+                return null;
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Page footer */}
-      <div
-        className="flex items-center justify-between px-5 sm:px-8 lg:px-12 py-3 border-t"
-        style={{ backgroundColor: "#f2f3f5", borderColor: "#dde2e8" }}
-      >
-        <span className="text-xs font-medium" style={{ color: "#9aa3ad", letterSpacing: "0.1em" }}>
-          PAGE {page} OF {totalPages}
-        </span>
-        <button
-          suppressHydrationWarning
-          className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold hover:bg-gray-200 transition-colors"
-          style={{ backgroundColor: "#e4e8ed", color: "#9aa3ad" }}
-        >
-          i
-        </button>
-      </div>
+      {/* Page footer — only relevant in text mode */}
+      {mode === "text" && (
+        <div className="flex items-center justify-between px-5 sm:px-8 lg:px-12 py-3 border-t" style={{ backgroundColor: "#f2f3f5", borderColor: "#dde2e8" }}>
+          <span className="text-xs font-medium" style={{ color: "#9aa3ad", letterSpacing: "0.1em" }}>
+            PAGE {page} OF {totalPages}
+          </span>
+          <button
+            suppressHydrationWarning
+            className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold hover:bg-gray-200 transition-colors"
+            style={{ backgroundColor: "#e4e8ed", color: "#9aa3ad" }}
+          >
+            i
+          </button>
+        </div>
+      )}
 
       {/* Mobile bottom toolbar */}
       <div
@@ -124,15 +219,20 @@ export default function BookContent({ chapterNum, title, content = [], page, tot
             <rect x="3" y="14.5" width="12" height="1.5" rx="0.75" fill="currentColor" />
           </svg>
         </BottomBtn>
-        <BottomBtn label="Zoom out"   onClick={onZoomOut}><ZoomOut   size={20} strokeWidth={2} /></BottomBtn>
-        <BottomBtn label="Zoom in"    onClick={onZoomIn} ><ZoomIn    size={20} strokeWidth={2} /></BottomBtn>
-        <BottomBtn label="Brightness"                    ><Sun       size={20} strokeWidth={2} /></BottomBtn>
-        <BottomBtn label="Bookmark"                      ><Bookmark  size={20} strokeWidth={2} /></BottomBtn>
+        {mode === "text" && (
+          <>
+            <BottomBtn label="Zoom out" onClick={onZoomOut}><ZoomOut size={20} strokeWidth={2} /></BottomBtn>
+            <BottomBtn label="Zoom in"  onClick={onZoomIn} ><ZoomIn  size={20} strokeWidth={2} /></BottomBtn>
+          </>
+        )}
+        <BottomBtn label="Brightness"><Sun      size={20} strokeWidth={2} /></BottomBtn>
+        <BottomBtn label="Bookmark"  ><Bookmark size={20} strokeWidth={2} /></BottomBtn>
       </div>
     </main>
   );
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function Divider() {
   return (
     <div className="flex items-center justify-center gap-3 mb-6">
