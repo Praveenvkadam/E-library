@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { generateSpeech, SARVAM_VOICES } = require("../service/ttsService");
 const { getSupportedLanguages } = require("../utils/languageDetect");
+const { extractTextFromUrl } = require("../service/pdfExtractService"); // ← NEW
 
 /**
  * POST /ai/tts/generate
@@ -111,9 +112,44 @@ const getSupportedLanguagesHandler = (req, res) => {
   });
 };
 
+/**
+ * POST /ai/tts/extract-pdf-text          ← NEW
+ * Extract plain text from a remote PDF URL so the client can pass it to TTS.
+ * Body: { url: string }
+ * Returns: { success, data: { text, wordCount, pages } }
+ */
+const extractPdfTextHandler = async (req, res, next) => {
+  try {
+    const { url } = req.body;
+
+    if (!url || !url.startsWith("http"))
+      return res.status(400).json({ success: false, message: "Valid PDF URL is required." });
+
+    const extracted = await extractTextFromUrl(url);
+
+    if (!extracted.text || extracted.text.length < 50)
+      return res.status(422).json({
+        success: false,
+        message: "Could not extract readable text. The PDF may be image-based or encrypted.",
+      });
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        text:      extracted.text,
+        wordCount: extracted.metadata.wordCount,
+        pages:     extracted.pages,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   generateSpeechHandler,
   generateSpeechUrlHandler,
   downloadAudioHandler,
   getSupportedLanguagesHandler,
+  extractPdfTextHandler,           // ← NEW export
 };

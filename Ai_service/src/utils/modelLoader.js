@@ -15,10 +15,10 @@ const preloadModels = async () => {
     console.log("[SarvamClient] Verifying API key and connectivity...");
     // Lightweight call to confirm the key works
     await sarvamClient.post("/text-language-detection", { input: "hello" });
-    console.log("[SarvamClient] ✅ Sarvam.ai API connected successfully.");
+    console.log("[SarvamClient]  Sarvam.ai API connected successfully.");
     console.log("[SarvamClient] Active models: Sarvam-M (chat), Bulbul v3 (TTS), Saaras v3 (STT)");
   } catch (err) {
-    console.error("[SarvamClient] ⚠️  API verification failed:", err.message);
+    console.error("[SarvamClient]  API verification failed:", err.message);
     console.error("[SarvamClient] Check SARVAM_API_KEY in your .env file.");
   }
 };

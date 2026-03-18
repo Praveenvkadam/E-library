@@ -12,6 +12,7 @@ const {
   generateSpeechUrlHandler,
   downloadAudioHandler,
   getSupportedLanguagesHandler,
+  extractPdfTextHandler,           // ← NEW
 } = require("../controller/ttsController");
 
 // Public route — no auth needed to list languages
@@ -28,9 +29,8 @@ router.use(ttsLimiter);
 
 /**
  * @route  POST /ai/tts/generate
- * @desc   Generate and stream audio from text
+ * @desc   Generate and stream WAV audio from text
  * @access Private
- * @body   { text, voice?, engine?: "kokoro"|"google", gender? }
  */
 router.post("/generate", generateSpeechHandler);
 
@@ -38,7 +38,6 @@ router.post("/generate", generateSpeechHandler);
  * @route  POST /ai/tts/generate-url
  * @desc   Generate audio and return a temporary download URL
  * @access Private
- * @body   { text, voice?, engine?, gender? }
  */
 router.post("/generate-url", generateSpeechUrlHandler);
 
@@ -48,5 +47,13 @@ router.post("/generate-url", generateSpeechUrlHandler);
  * @access Private
  */
 router.get("/download/:fileName", downloadAudioHandler);
+
+/**
+ * @route  POST /ai/tts/extract-pdf-text          ← NEW
+ * @desc   Extract plain text from a remote PDF URL for client-side TTS
+ * @access Private
+ * @body   { url: string }
+ */
+router.post("/extract-pdf-text", extractPdfTextHandler);
 
 module.exports = router;
